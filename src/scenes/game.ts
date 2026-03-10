@@ -9,18 +9,40 @@ const TICK_MS = 50; // 20fps for smooth movement
 let handler: ((key: string) => void) | null = null;
 let tickInterval: ReturnType<typeof setInterval> | null = null;
 
-/**
- * Render the visible portion of an enemy word.
- * startIdx/endIdx define which slice of the word is on-screen.
- * matched is how many chars from the START of the full word the player has typed.
- */
-function renderWord(enemy: Enemy, matched: number, zone: Zone, startIdx: number, endIdx: number): string {
-  const visiblePart = enemy.word.slice(startIdx, endIdx);
+// --- Phase thresholds (must match logic.ts SCROLL_IN) ---
+const SCROLL_IN = 0.15;
+const INJECTION_START = 0.85;
 
-  // How much of the player's typed prefix overlaps with visible chars
+// --- Matrix wire ---
+const HEX = "0123456789abcdef";
+const WIRE_MARGIN = 2; // chars of space between wall area and wire start
+
+/** Generate a matrix hex char for a wire position */
+function wireChar(tick: number, col: number, reversed: boolean): string {
+  const flow = reversed ? -tick : tick;
+  // Create clusters of hex chars with gaps
+  const phase = ((flow + col * 7) % 5 + 5) % 5;
+  if (phase === 0) return " ";
+  if (phase === 4) return "·";
+  const hexIdx = ((flow * 3 + col * 7) % 16 + 16) % 16;
+  return HEX[hexIdx]!;
+}
+
+const POWER_UP_LABELS: Record<string, string> = {
+  heal: "+HP",
+  surge_boost: "+SURGE",
+  double_score: "2x SCORE",
+  slow: "FREEZE",
+};
+
+/**
+ * Render the word portion with match highlighting.
+ * Returns colored string for the visible word chars.
+ */
+function renderWordStr(enemy: Enemy, matched: number, zone: Zone, startIdx: number, endIdx: number): string {
+  const visiblePart = enemy.word.slice(startIdx, endIdx);
   const visibleMatchCount = Math.min(visiblePart.length, Math.max(0, matched - startIdx));
 
-  // Power-ups always render in magenta
   if (enemy.powerUp) {
     if (visibleMatchCount === 0) {
       return `${c.magenta}${c.bold}${visiblePart}${c.reset}`;
@@ -47,83 +69,147 @@ function renderWord(enemy: Enemy, matched: number, zone: Zone, startIdx: number,
   return `${bgColor}${c.bold}${matchedPart}${c.reset}${color}${c.bold}${remaining}${c.reset}`;
 }
 
-const POWER_UP_LABELS: Record<string, string> = {
-  heal: "+HP",
-  surge_boost: "+SURGE",
-  double_score: "2x SCORE",
-  slow: "FREEZE",
-};
-
-/** Fraction of position travel spent scrolling the word in from the right */
-const SCROLL_IN = 0.15;
-
 /**
- * Word scrolls in from the right border (tail first), then slides left.
- * Returns col (on-screen column) and startIdx/endIdx (visible char range).
+ * Render a full lane for a living enemy.
+ * Three phases: scroll-in → static+wire → elastic injection.
+ * Returns raw content string (fieldWidth visual chars) for the lane.
  */
-function wordLayout(enemy: Enemy): { col: number; startIdx: number; endIdx: number } {
+function renderLaneContent(
+  enemy: Enemy,
+  matched: number,
+  zone: Zone,
+  tick: number,
+): string {
   const { fieldWidth } = layout();
   const len = enemy.word.length;
-  const maxCol = fieldWidth - len; // word starts at the right border edge
+  const anchorCol = fieldWidth - len; // right-justified
 
   if (enemy.position <= 0) {
-    // Not yet on screen
-    return { col: fieldWidth, startIdx: len, endIdx: len };
+    return " ".repeat(fieldWidth);
   }
 
+  // --- Phase 1: Scroll-in from right ---
   if (enemy.position < SCROLL_IN) {
-    // Phase 1: scrolling in from right. Tail chars appear first.
     const progress = enemy.position / SCROLL_IN;
     const visibleCount = Math.min(len, Math.max(1, Math.ceil(progress * len)));
     const startIdx = len - visibleCount;
-    // Right-align the visible portion near the right edge
-    const col = maxCol + (len - visibleCount);
-    return { col, startIdx, endIdx: len };
+    const col = anchorCol + startIdx;
+    const padding = " ".repeat(col);
+    const wordStr = renderWordStr(enemy, matched, zone, startIdx, len);
+    return padding + wordStr;
   }
 
-  // Phase 2: fully visible, sliding left toward danger
-  const slideProgress = (enemy.position - SCROLL_IN) / (1.0 - SCROLL_IN);
-  const col = Math.round(maxCol * (1 - slideProgress));
-  if (col < 0) {
-    // Word sliding off left edge
-    const clip = Math.min(len, -col);
-    return { col: 0, startIdx: clip, endIdx: len };
+  // --- Phase 2: Static word + matrix wire ---
+  if (enemy.position < INJECTION_START) {
+    const wireProgress = (enemy.position - SCROLL_IN) / (INJECTION_START - SCROLL_IN);
+    const maxWireLen = Math.max(0, anchorCol - WIRE_MARGIN);
+    const wireLen = Math.max(0, Math.round(wireProgress * maxWireLen));
+    const wireStart = anchorCol - wireLen;
+
+    // Build wire string
+    const wireColor = zoneColor(zone);
+    const reversed = matched > 0; // reverse flow when typing
+    let wire = "";
+    for (let i = 0; i < wireLen; i++) {
+      wire += wireChar(tick, wireStart + i, reversed);
+    }
+
+    const padding = " ".repeat(Math.max(0, wireStart));
+    const wordStr = renderWordStr(enemy, matched, zone, 0, len);
+
+    return padding + `${wireColor}${c.dim}${wire}${c.reset}` + wordStr;
   }
-  return { col, startIdx: 0, endIdx: len };
+
+  // --- Phase 3: Elastic injection ---
+  const injProgress = Math.min(1, (enemy.position - INJECTION_START) / (1.0 - INJECTION_START));
+
+  // Compute per-letter positions with staggered elastic easing
+  const letterCols: number[] = [];
+  for (let i = 0; i < len; i++) {
+    // Leftmost letters (low i) start moving first
+    const delay = len > 1 ? (i * 0.3) / (len - 1) : 0;
+    const lp = Math.max(0, Math.min(1, (injProgress - delay) / (1 - delay)));
+    const eased = lp * lp * lp; // cubic ease-in for snap feel
+    const startCol = anchorCol + i;
+    const endCol = i; // letters compress at the wall
+    const col = Math.round(startCol + (endCol - startCol) * eased);
+    letterCols.push(col);
+  }
+
+  // Build character buffer with letter index tracking
+  const buf: (number | null)[] = new Array(fieldWidth).fill(null);
+  for (let i = 0; i < len; i++) {
+    const col = letterCols[i]!;
+    if (col >= 0 && col < fieldWidth) {
+      buf[col] = i; // store letter index
+    }
+  }
+
+  // Serialize with proper coloring
+  const color = enemy.powerUp ? c.magenta : zoneColor(zone);
+  let bgColor: string;
+  if (zone === "CRITICAL") bgColor = c.bgBrightRed;
+  else if (zone === "RISKY") bgColor = c.bgYellow + c.black;
+  else bgColor = c.bgGreen + c.black;
+
+  let result = "";
+  let lastMode: "space" | "matched" | "unmatched" | null = null;
+
+  for (let i = 0; i < fieldWidth; i++) {
+    const idx = buf[i] ?? null;
+    let mode: "space" | "matched" | "unmatched";
+
+    if (idx === null) {
+      mode = "space";
+    } else if (idx < matched) {
+      mode = "matched";
+    } else {
+      mode = "unmatched";
+    }
+
+    if (mode !== lastMode) {
+      if (lastMode && lastMode !== "space") result += c.reset;
+      if (mode === "matched") result += `${bgColor}${c.bold}`;
+      else if (mode === "unmatched") result += `${color}${c.bold}`;
+      lastMode = mode;
+    }
+
+    result += idx !== null ? enemy.word[idx]! : " ";
+  }
+  if (lastMode && lastMode !== "space") result += c.reset;
+
+  return result;
 }
 
 /** Render a dead enemy — fading ghost on its lane */
-function renderDeath(enemy: Enemy, tick: number): string {
+function renderDeath(enemy: Enemy, tick: number, fieldWidth: number): string {
   const age = tick - enemy.killedAt;
-  const { col } = wordLayout(enemy);
-  const padding = " ".repeat(Math.max(0, col));
+  const anchorCol = fieldWidth - enemy.word.length;
+  const padding = " ".repeat(Math.max(0, anchorCol));
 
   if (enemy.killedZone === "MISSED") {
-    // Power-ups that were missed just fade quietly
     if (enemy.powerUp) {
-      if (age < 3) return `  ${padding}${c.dim}${enemy.word}${c.reset}`;
-      return `  ${c.dim}·${c.reset}`;
+      if (age < 3) return `${padding}${c.dim}${enemy.word}${c.reset}`;
+      return `${c.dim}·${c.reset}`;
     }
-    if (age < 4) return `  ${padding}${c.red}${c.dim}${c.strikethrough}${enemy.word}${c.reset}`;
-    return `  ${c.dim}·${c.reset}`;
+    // Missed enemy — show near the wall (it injected into the system)
+    if (age < 4) return `${c.red}${c.dim}${c.strikethrough}${enemy.word}${c.reset}`;
+    return `${c.dim}·${c.reset}`;
   }
 
-  // Power-up caught — show effect label
+  // Power-up caught
   if (enemy.powerUp) {
     const label = POWER_UP_LABELS[enemy.powerUp] || "+??";
-    if (age < 4) return `  ${padding}${c.magenta}${c.bold}${label}${c.reset}`;
-    if (age < 6) return `  ${padding}${c.dim}${label}${c.reset}`;
-    return `  ${c.dim}·${c.reset}`;
+    if (age < 4) return `${padding}${c.magenta}${c.bold}${label}${c.reset}`;
+    if (age < 6) return `${padding}${c.dim}${label}${c.reset}`;
+    return `${c.dim}·${c.reset}`;
   }
 
+  // Normal kill — show points at anchor
   const color = enemy.killedZone ? zoneColor(enemy.killedZone) : c.dim;
-  if (age < 3) {
-    return `  ${padding}${color}${c.bold}+${enemy.killedPoints}${c.reset}`;
-  }
-  if (age < 5) {
-    return `  ${padding}${c.dim}+${enemy.killedPoints}${c.reset}`;
-  }
-  return `  ${c.dim}·${c.reset}`;
+  if (age < 3) return `${padding}${color}${c.bold}+${enemy.killedPoints}${c.reset}`;
+  if (age < 5) return `${padding}${c.dim}+${enemy.killedPoints}${c.reset}`;
+  return `${c.dim}·${c.reset}`;
 }
 
 /** Build the bottom ╚══[ input ]══╝ border with score + combo */
@@ -132,7 +218,6 @@ function bottomBorder(state: GameState, target: Enemy | null): string {
   const input = state.inputBuffer;
   const surgeReady = state.surgeReady;
 
-  // Determine display text and color
   let displayText: string;
   let color: string;
 
@@ -148,17 +233,15 @@ function bottomBorder(state: GameState, target: Enemy | null): string {
     color = "";
   }
 
-  // Score + combo labels in brackets on left/right
   const cm = comboMultiplier(state.combo);
   const scoreStr = state.score.toLocaleString();
   const leftLabel = scoreStr;
   const rightLabel = state.combo > 0 ? `${cm}x` : "";
-  // Visual char count: ╚ + [score] + ═fill═ + [input] + ═fill═ + [combo] + ╝
-  const leftBracketLen = leftLabel.length + 2;  // [ + label + ]
+  const leftBracketLen = leftLabel.length + 2;
   const rightBracketLen = rightLabel ? rightLabel.length + 2 : 0;
-  const inputBracketLen = displayText.length + 2; // [ + text + ]
-  const fixedLen = 2 + leftBracketLen + inputBracketLen + rightBracketLen; // ╚ + ╝ + brackets
-  const fillTotal = Math.max(0, width - fixedLen + 2); // width = cols-2, total = cols
+  const inputBracketLen = displayText.length + 2;
+  const fixedLen = 2 + leftBracketLen + inputBracketLen + rightBracketLen;
+  const fillTotal = Math.max(0, width - fixedLen + 2);
   const leftFill = Math.floor(fillTotal / 2);
   const rightFill = fillTotal - leftFill;
 
@@ -177,7 +260,7 @@ function bottomBorder(state: GameState, target: Enemy | null): string {
 }
 
 function render(state: GameState): string {
-  const { wallMax, rightCol, lanes, compact, barWidth } = layout();
+  const { wallMax, rightCol, lanes, compact, barWidth, fieldWidth } = layout();
   const lines: string[] = [];
 
   // Header
@@ -189,12 +272,10 @@ function render(state: GameState): string {
     : `${c.blue}${bar(state.surgeMeter, state.surgeThreshold, barWidth)}${c.reset}`;
 
   if (compact) {
-    // Single header line for small terminals
     lines.push(bLine(
       ` ${hpBar} ${surgeBar} ${c.dim}w${c.reset}${c.bold}${state.wave + 1}${c.reset}`
     ));
   } else {
-    // Two header lines for standard terminals
     lines.push(bLine(
       `  ${c.dim}integrity${c.reset} ${hpBar}  ${c.dim}surge${c.reset} ${surgeBar}`
     ));
@@ -204,7 +285,7 @@ function render(state: GameState): string {
   }
   lines.push(bDiv("═", "╠", "╣"));
 
-  // Wall — a barrier on the LEFT that erodes as HP drops
+  // Wall — erodes from left as HP drops
   const hpRatio = state.hp / state.maxHp;
   const wallWidth = Math.round(hpRatio * wallMax);
   let wallColor: string;
@@ -214,6 +295,8 @@ function render(state: GameState): string {
   const wallStr = wallWidth > 0
     ? `${wallColor}${"█".repeat(wallWidth)}${c.reset}`
     : `${c.red}${c.bold}|${c.reset}`;
+  // Pad wall to wallMax so content area starts at a fixed column
+  const wallPad = " ".repeat(Math.max(0, wallMax - wallWidth));
 
   // Status line (standard only)
   if (!compact) {
@@ -223,10 +306,10 @@ function render(state: GameState): string {
     const statusHint = effects.length > 0
       ? `  ${effects.join("  ")}`
       : `${c.dim}type the word to${c.reset} ${c.red}${c.bold}SQUASH${c.reset}`;
-    lines.push(`${c.cyan}║${c.reset}${wallStr}  ${c.dim}·${c.reset}  ${statusHint}\x1b[K\x1b[${rightCol}G${c.cyan}║${c.reset}`);
+    lines.push(`${c.cyan}║${c.reset}${wallStr}${wallPad}${statusHint}\x1b[K\x1b[${rightCol}G${c.cyan}║${c.reset}`);
   }
 
-  // Build lane map — living enemies take priority, dead ones shown as ghosts
+  // Build lane map
   const liveLaneMap = new Map<number, Enemy>();
   const deadLaneMap = new Map<number, Enemy>();
   for (const enemy of state.enemies) {
@@ -243,48 +326,35 @@ function render(state: GameState): string {
   const target = findTarget(state);
   const inputLen = state.inputBuffer.length;
 
-  // Render fixed lanes (content only, borders added in wall stamp pass)
+  // Render lanes
   for (let lane = 0; lane < lanes; lane++) {
     const alive = liveLaneMap.get(lane);
     if (alive) {
-      const { col, startIdx, endIdx } = wordLayout(alive);
       const zone = getZone(alive.position);
-      const padding = " ".repeat(Math.max(0, col));
       const isTarget = target !== null && alive.id === target.id;
       const matched = isTarget ? inputLen : 0;
-      const wordStr = renderWord(alive, matched, zone, startIdx, endIdx);
-
-      let marker: string;
-      if (alive.powerUp) {
-        marker = `${c.magenta}${c.bold}*${c.reset}`;
-      } else if (alive.position >= 1.0) marker = `${c.red}${c.bold}!!!!${c.reset}`;
-      else if (alive.position >= 0.85) marker = `${c.red}!!${c.reset}`;
-      else if (alive.position >= 0.5) marker = `${c.yellow}!${c.reset}`;
-      else marker = `${c.dim}·${c.reset}`;
-
-      lines.push(`  ${padding}${wordStr} ${marker}`);
+      const content = renderLaneContent(alive, matched, zone, state.tick);
+      lines.push(content);
       continue;
     }
 
     const dead = deadLaneMap.get(lane);
     if (dead) {
-      lines.push(renderDeath(dead, state.tick));
+      lines.push(renderDeath(dead, state.tick, fieldWidth));
       continue;
     }
 
-    lines.push(`  ${c.dim}·${c.reset}`);
+    lines.push(`${c.dim}·${c.reset}`);
   }
 
   // Stamp left border + wall + right border on each lane line
   for (let i = 0; i < lanes; i++) {
     const lineIdx = lines.length - lanes + i;
     const raw = lines[lineIdx]!;
-    lines[lineIdx] = `${c.cyan}║${c.reset}${wallStr}` + raw + `\x1b[K\x1b[${rightCol}G${c.cyan}║${c.reset}`;
+    lines[lineIdx] = `${c.cyan}║${c.reset}${wallStr}${wallPad}` + raw + `\x1b[K\x1b[${rightCol}G${c.cyan}║${c.reset}`;
   }
 
   lines.push(bDiv("─", "╟", "╢"));
-
-  // Bottom border with embedded input
   lines.push(bottomBorder(state, target));
 
   return "\x1b[H" + lines.join("\n") + "\x1b[J";

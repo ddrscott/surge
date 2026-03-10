@@ -5,7 +5,7 @@ import { getWord, getPowerUp } from "./words.js";
 const ZONE_THRESHOLDS = {
   SAFE: 0.5,
   RISKY: 0.85,
-  CRITICAL: 1.3,
+  CRITICAL: 1.05, // word dies shortly after injection completes at 1.0
 };
 
 const ZONE_MULTIPLIERS: Record<Zone, number> = {
@@ -56,6 +56,7 @@ function randBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
+/** Pick a free lane, or -1 if all lanes are occupied (lane locking) */
 function pickLane(state: GameState): number {
   const { lanes } = layout();
   const occupied = new Set(state.enemies.filter((e) => !e.dead).map((e) => e.lane));
@@ -64,7 +65,7 @@ function pickLane(state: GameState): number {
     if (!occupied.has(i)) free.push(i);
   }
   if (free.length > 0) return free[Math.floor(Math.random() * free.length)]!;
-  return Math.floor(Math.random() * lanes);
+  return -1; // all lanes occupied — defer spawn
 }
 
 export function getZone(position: number): Zone {
@@ -84,7 +85,7 @@ export function revealedCount(enemy: Enemy): number {
   return Math.min(enemy.word.length, Math.max(1, Math.ceil(progress * enemy.word.length)));
 }
 
-function spawnEnemy(state: GameState, config: WaveConfig): Enemy {
+function spawnEnemy(state: GameState, config: WaveConfig, lane: number): Enemy {
   const activeWords = state.enemies.filter((e) => !e.dead).map((e) => e.word);
   const word = getWord(config.minWordLength, config.maxWordLength, activeWords);
   const swps = randBetween(config.minSpeed, config.maxSpeed); // screen widths/sec
@@ -98,7 +99,7 @@ function spawnEnemy(state: GameState, config: WaveConfig): Enemy {
     points: Math.round(swps * word.length * 500),
     dead: false,
     spawnedAt: state.tick,
-    lane: pickLane(state),
+    lane,
     killedAt: -1,
     killedZone: null,
     killedPoints: 0,
@@ -106,7 +107,7 @@ function spawnEnemy(state: GameState, config: WaveConfig): Enemy {
   };
 }
 
-function spawnPowerUp(state: GameState, config: WaveConfig): Enemy {
+function spawnPowerUp(state: GameState, config: WaveConfig, lane: number): Enemy {
   const pu = getPowerUp();
   const swps = randBetween(config.maxSpeed * 1.5, config.maxSpeed * 2.5);
   const speed = swps / FPS;
@@ -119,7 +120,7 @@ function spawnPowerUp(state: GameState, config: WaveConfig): Enemy {
     points: Math.round(swps * pu.word.length * 500),
     dead: false,
     spawnedAt: state.tick,
-    lane: pickLane(state),
+    lane,
     killedAt: -1,
     killedZone: null,
     killedPoints: 0,
@@ -200,7 +201,7 @@ export function processInput(state: GameState): HitResult | null {
       const zoneMultiplier = ZONE_MULTIPLIERS[zone];
       const cm = comboMultiplier(state.combo);
       let points = Math.floor(target.points * zoneMultiplier * cm);
-      let damage = 0;
+      const damage = 0;
 
       // Apply double score if active
       if (state.doubleScoreUntil > state.tick) {
@@ -216,18 +217,13 @@ export function processInput(state: GameState): HitResult | null {
       if (target.powerUp) {
         applyPowerUp(state, target.powerUp);
       } else {
-        // Normal bug kill — surge meter + damage logic
+        // Normal bug kill — surge meter
         if (zone === "CRITICAL") {
           state.surgeMeter += 3;
         } else if (zone === "RISKY") {
           state.surgeMeter += 2;
         } else {
           state.surgeMeter += 1;
-        }
-
-        if (target.position > 1.1) {
-          damage = Math.floor(target.damage * 0.3);
-          state.hp -= damage;
         }
       }
 
@@ -288,22 +284,29 @@ export function gameTick(state: GameState): void {
 
   // Phrase-based spawning: bursts of enemies with rests between
   if (state.waveSpawned < config.enemyCount && state.tick >= state.nextSpawnTick) {
-    state.enemies.push(spawnEnemy(state, config));
-    state.waveSpawned++;
+    const lane = pickLane(state);
+    if (lane >= 0) {
+      state.enemies.push(spawnEnemy(state, config, lane));
+      state.waveSpawned++;
 
-    // Decide when to spawn next based on position within the phrase
-    const posInPhrase = (state.waveSpawned - 1) % config.phraseSize;
-    if (posInPhrase < config.phraseSize - 1) {
-      // Within a burst — spawn again quickly
-      state.nextSpawnTick = state.tick + config.phrasePace;
+      // Decide when to spawn next based on position within the phrase
+      const posInPhrase = (state.waveSpawned - 1) % config.phraseSize;
+      if (posInPhrase < config.phraseSize - 1) {
+        state.nextSpawnTick = state.tick + config.phrasePace;
+      } else {
+        state.nextSpawnTick = state.tick + config.phraseGap;
+      }
+
+      // Power-ups: ~15% chance per spawn, starting wave 1
+      if (state.wave >= 1 && Math.random() < 0.15) {
+        const puLane = pickLane(state);
+        if (puLane >= 0) {
+          state.enemies.push(spawnPowerUp(state, config, puLane));
+        }
+      }
     } else {
-      // End of burst — take a breath
-      state.nextSpawnTick = state.tick + config.phraseGap;
-    }
-
-    // Power-ups: ~15% chance per spawn, starting wave 1
-    if (state.wave >= 1 && Math.random() < 0.15) {
-      state.enemies.push(spawnPowerUp(state, config));
+      // All lanes occupied — retry in a few ticks
+      state.nextSpawnTick = state.tick + 5;
     }
   }
 

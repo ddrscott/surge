@@ -19,7 +19,7 @@ export function layout(): Layout {
   const compact = cols < 60 || rows < 18;
   const width = cols - 2;
   const wallMax = compact ? 2 : 4;
-  const fieldWidth = width - wallMax - (compact ? 3 : 6);
+  const fieldWidth = width - wallMax; // full content area after wall
   const rightCol = cols;
   // Standard: top(1) + header(2) + div(1) + status(1) + lanes + div(1) + bottom(1) = lanes + 7
   // Compact:  top(1) + header(1) + div(1) + lanes + div(1) + bottom(1) = lanes + 5
