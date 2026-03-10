@@ -128,7 +128,7 @@ function renderDeath(enemy: Enemy, tick: number): string {
 
 /** Build the bottom ╚══[ input ]══╝ border with score + combo */
 function bottomBorder(state: GameState, target: Enemy | null): string {
-  const { width, compact } = layout();
+  const { width } = layout();
   const input = state.inputBuffer;
   const surgeReady = state.surgeReady;
 
@@ -148,21 +148,22 @@ function bottomBorder(state: GameState, target: Enemy | null): string {
     color = "";
   }
 
-  // Score + combo labels for left/right sides
+  // Score + combo labels in brackets on left/right
   const cm = comboMultiplier(state.combo);
   const scoreStr = state.score.toLocaleString();
-  const leftLabel = compact ? scoreStr : `${scoreStr}`;
+  const leftLabel = scoreStr;
   const rightLabel = state.combo > 0 ? `${cm}x` : "";
-  const leftLen = leftLabel.length + 1;  // + space padding
-  const rightLen = rightLabel.length > 0 ? rightLabel.length + 1 : 0;
-
-  const bracketLen = displayText.length + 2; // [ and ]
-  const fillTotal = Math.max(0, width - bracketLen - leftLen - rightLen);
+  // Visual char count: ╚ + [score] + ═fill═ + [input] + ═fill═ + [combo] + ╝
+  const leftBracketLen = leftLabel.length + 2;  // [ + label + ]
+  const rightBracketLen = rightLabel ? rightLabel.length + 2 : 0;
+  const inputBracketLen = displayText.length + 2; // [ + text + ]
+  const fixedLen = 2 + leftBracketLen + inputBracketLen + rightBracketLen; // ╚ + ╝ + brackets
+  const fillTotal = Math.max(0, width - fixedLen + 2); // width = cols-2, total = cols
   const leftFill = Math.floor(fillTotal / 2);
   const rightFill = fillTotal - leftFill;
 
-  const leftPart = `${c.cyan}╚${c.reset}${c.bold}${c.yellow}${leftLabel}${c.reset}${c.cyan}${"═".repeat(Math.max(0, leftFill))}`;
-  const rightPart = `${"═".repeat(Math.max(0, rightFill))}${c.reset}${state.combo > 0 ? `${c.bold}${c.yellow}${rightLabel}${c.reset}${c.cyan}` : ""}╝${c.reset}`;
+  const leftPart = `${c.cyan}╚[${c.reset}${c.bold}${c.yellow}${leftLabel}${c.reset}${c.cyan}]${"═".repeat(leftFill)}`;
+  const rightPart = `${"═".repeat(rightFill)}${rightLabel ? `[${c.reset}${c.bold}${c.yellow}${rightLabel}${c.reset}${c.cyan}]` : ""}╝${c.reset}`;
 
   if (!input && !surgeReady) {
     return `${leftPart}[${c.dim}${displayText}${c.cyan}]${rightPart}`;
@@ -189,9 +190,8 @@ function render(state: GameState): string {
 
   if (compact) {
     // Single header line for small terminals
-    const cm = comboMultiplier(state.combo);
     lines.push(bLine(
-      ` ${hpBar} ${surgeBar} ${c.dim}w${c.reset}${c.bold}${state.wave + 1}${c.reset} ${c.dim}x${c.reset}${c.bold}${state.combo}${c.reset}${c.yellow}(${cm}x)${c.reset} ${c.bold}${state.score.toLocaleString()}${c.reset}`
+      ` ${hpBar} ${surgeBar} ${c.dim}w${c.reset}${c.bold}${state.wave + 1}${c.reset}`
     ));
   } else {
     // Two header lines for standard terminals
@@ -199,7 +199,7 @@ function render(state: GameState): string {
       `  ${c.dim}integrity${c.reset} ${hpBar}  ${c.dim}surge${c.reset} ${surgeBar}`
     ));
     lines.push(bLine(
-      `  ${c.dim}wave${c.reset} ${c.bold}${state.wave + 1}${c.reset}    ${c.dim}x${c.reset}${c.bold}${state.combo}${c.reset} ${c.yellow}${c.bold}(${comboMultiplier(state.combo)}x)${c.reset}    ${c.bold}${state.score.toLocaleString()}${c.reset}`
+      `  ${c.dim}wave${c.reset} ${c.bold}${state.wave + 1}${c.reset}`
     ));
   }
   lines.push(bDiv("═", "╠", "╣"));
