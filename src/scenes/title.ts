@@ -3,8 +3,15 @@ import type { SceneContext } from "./types.js";
 
 let handler: ((key: string) => void) | null = null;
 
+/** Center a string within `w` columns */
+function center(text: string, w: number): string {
+  const pad = Math.max(0, Math.floor((w - text.length) / 2));
+  return " ".repeat(pad) + text;
+}
+
 function renderScreen(titleBuffer: string): string {
-  const { compact } = layout();
+  const { compact, width } = layout();
+  const inner = width; // inner width between ║ borders
   const input = titleBuffer.toLowerCase();
   const surgeWord = renderTitleWord(
     "surge".startsWith(input) ? titleBuffer : "",
@@ -23,27 +30,46 @@ function renderScreen(titleBuffer: string): string {
   const lines: string[] = [];
   lines.push(bDiv("═", "╔", "╗"));
 
+  // ASCII art banner lines (59 chars wide)
+  const banner = [
+    "███████ ██    ██ ██████   ██████  ███████",
+    "██      ██    ██ ██   ██ ██       ██",
+    "███████ ██    ██ ██████  ██   ███ █████",
+    "     ██ ██    ██ ██   ██ ██    ██ ██",
+    "███████  ██████  ██   ██  ██████  ███████",
+  ];
+  const bannerWidth = banner[0]!.length; // 41
+
   if (compact) {
+    const title = "S U R G E";
+    lines.push(bLine(`${center(title, inner).replace(title, `${c.cyan}${c.bold}${title}${c.reset}`)}`));
+    lines.push(bLine(`${c.dim}${center("Bugs in memory.", inner)}${c.reset}`));
+    lines.push(bLine(`${c.dim}${center("Type to squash.", inner)}${c.reset}`));
+  } else if (inner >= bannerWidth + 2) {
+    // Full ASCII banner, centered
+    lines.push(bLine(""));
     lines.push(bLine(dbar));
-    lines.push(bLine(`  ${c.cyan}${c.bold}S U R G E${c.reset}`));
+    lines.push(bLine(""));
+    for (const line of banner) {
+      lines.push(bLine(`${c.cyan}${c.bold}${center(line, inner)}${c.reset}`));
+    }
+    lines.push(bLine(""));
     lines.push(bLine(dbar));
-    lines.push(bLine(`${c.dim}  Bugs in memory.${c.reset}`));
-    lines.push(bLine(`${c.dim}  Type to squash.${c.reset}`));
+    lines.push(bLine(""));
+    lines.push(bLine(`${c.dim}${center("The system is infested.", inner)}${c.reset}`));
+    lines.push(bLine(`${c.dim}${center("Bugs are crawling through memory.", inner)}${c.reset}`));
+    lines.push(bLine(`${c.dim}${center("Name them to squash them.", inner)}${c.reset}`));
   } else {
-    lines.push(bLine(""));
+    // Medium: too narrow for ASCII art, too wide for compact
     lines.push(bLine(dbar));
     lines.push(bLine(""));
-    lines.push(bLine(`${c.cyan}${c.bold}                  ███████ ██    ██ ██████   ██████  ███████${c.reset}`));
-    lines.push(bLine(`${c.cyan}${c.bold}                  ██      ██    ██ ██   ██ ██       ██${c.reset}`));
-    lines.push(bLine(`${c.cyan}${c.bold}                  ███████ ██    ██ ██████  ██   ███ █████${c.reset}`));
-    lines.push(bLine(`${c.cyan}${c.bold}                       ██ ██    ██ ██   ██ ██    ██ ██${c.reset}`));
-    lines.push(bLine(`${c.cyan}${c.bold}                  ███████  ██████  ██   ██  ██████  ███████${c.reset}`));
+    const title = "S U R G E";
+    lines.push(bLine(`${c.cyan}${c.bold}${center(title, inner)}${c.reset}`));
     lines.push(bLine(""));
     lines.push(bLine(dbar));
-    lines.push(bLine(""));
-    lines.push(bLine(`${c.dim}    The system is infested.${c.reset}`));
-    lines.push(bLine(`${c.dim}    Bugs are crawling through memory.${c.reset}`));
-    lines.push(bLine(`${c.dim}    Name them to squash them.${c.reset}`));
+    lines.push(bLine(`${c.dim}${center("The system is infested.", inner)}${c.reset}`));
+    lines.push(bLine(`${c.dim}${center("Bugs are crawling through memory.", inner)}${c.reset}`));
+    lines.push(bLine(`${c.dim}${center("Name them to squash them.", inner)}${c.reset}`));
   }
 
   lines.push(bLine(""));
