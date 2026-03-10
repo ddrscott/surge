@@ -25,6 +25,8 @@ export interface Enemy {
   killedPoints: number;
   /** If set, this is a power-up, not a bug */
   powerUp: PowerUpEffect | null;
+  /** Whether this enemy has already triggered hitstun (wire touch) */
+  hitStunTriggered: boolean;
 }
 
 export type Zone = "SAFE" | "RISKY" | "CRITICAL" | "MISSED";

@@ -76,6 +76,7 @@ export function getZone(position: number): Zone {
 }
 
 const SCROLL_IN = 0.05; // must match game.ts
+const INJECTION_START = 0.85; // must match game.ts — wire touches word here
 
 /** How many letters of an enemy's word have scrolled into view (tail-first) */
 export function revealedCount(enemy: Enemy): number {
@@ -104,6 +105,7 @@ function spawnEnemy(state: GameState, config: WaveConfig, lane: number): Enemy {
     killedZone: null,
     killedPoints: 0,
     powerUp: null,
+    hitStunTriggered: false,
   };
 }
 
@@ -125,6 +127,7 @@ function spawnPowerUp(state: GameState, config: WaveConfig, lane: number): Enemy
     killedZone: null,
     killedPoints: 0,
     powerUp: pu.effect,
+    hitStunTriggered: false,
   };
 }
 
@@ -325,6 +328,13 @@ export function gameTick(state: GameState): void {
     // speed is position/tick (already converted from screen widths/sec)
     enemy.position += enemy.speed * slow;
 
+    // Hitstun when wire first touches the word (gap closes to 0)
+    if (!enemy.hitStunTriggered && !enemy.powerUp && enemy.position >= INJECTION_START) {
+      enemy.hitStunTriggered = true;
+      // Freeze for 8 ticks (~400ms) to let the wire-touch sink in
+      state.hitStunUntil = state.tick + 8;
+    }
+
     if (enemy.position >= ZONE_THRESHOLDS.CRITICAL) {
       enemy.dead = true;
       enemy.killedAt = state.tick;
@@ -336,8 +346,6 @@ export function gameTick(state: GameState): void {
         state.combo = 0;
         state.inputBuffer = "";
         state.targetId = null;
-        // Hitstun — freeze for 8 ticks (~400ms) to let the impact sink in
-        state.hitStunUntil = state.tick + 8;
       }
     }
   }

@@ -5,3 +5,4 @@
 - [x] Embed input in bottom border: `══[ $letters ]══` centered, remove separate input/status lines
 - [x] Wall erodes rightward as HP drops — bugs travel further as barrier shrinks from the right
 - [x] Rest the cursor block `█` in the bottom center of the frame
+- [x] Hitstun triggers when wire touches the word (gap=0) instead of on wall impact — `src/game/logic.ts`, `src/scenes/game.ts`
