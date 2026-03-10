@@ -4,8 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0a0a0a" />
-  <meta name="description" content="Cyberpunk terminal typing game. Bugs are crawling through memory. Type their names to squash them." />
+  <meta name="description" content="Something is moving in the system. A cyberpunk typing game that runs in your terminal." />
   <title>SURGE — Terminal Typing Game</title>
+  <script defer data-domain="surge.ljs.app" src="https://plausible.ljs.app/js/script.outbound-links.pageview-props.tagged-events.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
@@ -118,35 +119,19 @@
       font-size: 0.875rem;
     }
 
-    .how-list {
-      list-style: none;
-      padding: 0;
-      font-size: 0.875rem;
-    }
-
-    .how-list li {
-      padding: 0.4rem 0;
-      padding-left: 1.5rem;
-      position: relative;
-    }
-
-    .how-list li::before {
-      content: ">";
-      position: absolute;
-      left: 0;
-      color: var(--cyan);
-    }
-
     .highlight { color: var(--cyan); }
     .red { color: var(--red); }
     .green { color: var(--green); }
 
-    /* ── Leaderboard section ── */
-    .auth-section {
-      padding: 1rem 0;
+    /* ── Narrative blocks ── */
+    .narrative {
+      font-size: 0.875rem;
+      line-height: 1.8;
     }
 
-    .auth-flow {
+    .narrative .dim { color: var(--dim); }
+
+    .terminal-block {
       font-size: 0.8125rem;
       color: var(--dim);
       padding: 1rem;
@@ -154,19 +139,11 @@
       margin-top: 0.75rem;
     }
 
-    .auth-flow code {
+    .terminal-block code {
       color: var(--fg);
     }
 
-    .auth-flow ol {
-      padding-left: 1.5rem;
-      margin: 0;
-    }
-
-    .auth-flow li {
-      padding: 0.25rem 0;
-    }
-
+    /* ── Leaderboard section ── */
     .sign-in-link {
       color: var(--cyan);
       text-decoration: none;
@@ -176,6 +153,13 @@
 
     .sign-in-link:hover {
       border-bottom-color: var(--cyan);
+    }
+
+    .leaderboard-cta {
+      font-size: 0.8125rem;
+      color: var(--dim);
+      text-align: center;
+      padding: 1rem 0;
     }
 
     /* ── Footer ── */
@@ -213,7 +197,7 @@
 
     <div class="banner">
       <h1>SURGE</h1>
-      <p class="tagline">The system is infested. Bugs are crawling through memory.<br>Type their names to squash them.</p>
+      <p class="tagline">Something is moving in the system.</p>
     </div>
 
     <div class="play-section">
@@ -223,43 +207,27 @@
 
     <hr class="divider" />
 
-    <section>
-      <h2>How It Works</h2>
-      <ul class="how-list">
-        <li>Bugs crawl across your terminal trailing <span class="red">red matrix wires</span></li>
-        <li>Type a bug's name to <span class="green">squash</span> it before it breaches the wall</li>
-        <li>Kill fast and close to the wall for <span class="highlight">higher scores</span></li>
-        <li>Chain kills to build <span class="highlight">combos</span> &mdash; every 3 kills boosts your multiplier</li>
-        <li>Catch <span class="cyan highlight">power-up words</span> for shields, slow-mo, and double points</li>
-        <li>Survive escalating waves &mdash; bugs get faster and more numerous</li>
-      </ul>
+    <section class="narrative">
+      <p>They came through the memory bus at 3 AM. <span class="red">Red wires</span> threading through the stack, dragging names you almost recognize. <span class="dim">Weevil. Mantis. Botfly.</span></p>
+      <p>Your terminal is the last wall. The only weapon is the one under your fingers.</p>
+      <p><span class="highlight">Name them and they die.</span> Hesitate and they breach.</p>
+      <p>Each wave hits harder. The wires move faster. Your combo climbs &mdash; or it doesn't. There are no second chances, only <span class="green">faster fingers</span>.</p>
     </section>
 
     <hr class="divider" />
 
-    <section class="auth-section">
-      <h2>Leaderboards</h2>
-      <p>Sign in with your email to submit scores to the global leaderboard. No password required.</p>
-      <div class="auth-flow">
-        <ol>
-          <li>Click <a href="/api/auth/login?returnTo=/play" class="sign-in-link">sign in</a> or use the in-game link</li>
-          <li>Enter your email &mdash; you'll get a <code>magic link</code> + <code>6-digit code</code></li>
-          <li>Click the link or enter the code</li>
-          <li>You're in. Scores auto-submit on game over.</li>
-        </ol>
-      </div>
-      <div id="auth-bar" class="auth-bar"></div>
-    </section>
+    <p class="leaderboard-cta">
+      <a href="/api/auth/login?returnTo=/play" class="sign-in-link">Sign in</a> to claim your spot on the leaderboard.
+    </p>
+    <div id="auth-bar" class="auth-bar"></div>
 
     <hr class="divider" />
 
     <section>
-      <h2>Also Runs in Your Terminal</h2>
-      <p>
-        Surge is a Node.js app with zero dependencies. Clone and run it locally:
-      </p>
-      <div class="auth-flow">
-        <code>git clone https://github.com/ellipsis-tech/surge<br>
+      <h2>Run It Locally</h2>
+      <p>Zero dependencies. Pure terminal.</p>
+      <div class="terminal-block">
+        <code>git clone https://github.com/ddrscott/surge<br>
         cd surge && npm install && npm run dev</code>
       </div>
     </section>
