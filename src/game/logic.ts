@@ -280,6 +280,9 @@ export function gameTick(state: GameState): void {
 
   state.tick++;
 
+  // Hitstun — freeze all movement for a beat after an impact
+  if (state.tick < state.hitStunUntil) return;
+
   const config = getWaveConfig(state.wave);
 
   // Phrase-based spawning: bursts of enemies with rests between
@@ -331,9 +334,10 @@ export function gameTick(state: GameState): void {
       if (!enemy.powerUp) {
         state.hp -= enemy.damage;
         state.combo = 0;
-        // Clear input when an enemy gets through — no manual backspacing
         state.inputBuffer = "";
         state.targetId = null;
+        // Hitstun — freeze for 8 ticks (~400ms) to let the impact sink in
+        state.hitStunUntil = state.tick + 8;
       }
     }
   }

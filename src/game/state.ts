@@ -21,5 +21,6 @@ export function createGame(): GameState {
     slowUntil: 0,
     nextSpawnTick: 1,
     waveSpawned: 0,
+    hitStunUntil: 0,
   };
 }

@@ -62,6 +62,8 @@ export interface GameState {
   nextSpawnTick: number;
   /** Enemies spawned this wave (for phrase rhythm tracking) */
   waveSpawned: number;
+  /** Tick when hitstun ends — all movement freezes on impact */
+  hitStunUntil: number;
 }
 
 export interface WaveConfig {
