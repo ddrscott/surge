@@ -15,12 +15,11 @@ const INJECTION_START = 0.85;
 
 // --- Matrix wire ---
 const HEX = "0123456789abcdef";
-const WIRE_MARGIN = 2; // chars of space between wall area and wire start
+const WIRE_MARGIN = 2; // breathing room between wire edge and wall/word
 
 /** Generate a matrix hex char for a wire position */
 function wireChar(tick: number, col: number, reversed: boolean): string {
   const flow = reversed ? -tick : tick;
-  // Create clusters of hex chars with gaps
   const phase = ((flow + col * 7) % 5 + 5) % 5;
   if (phase === 0) return " ";
   if (phase === 4) return "·";
@@ -35,10 +34,7 @@ const POWER_UP_LABELS: Record<string, string> = {
   slow: "FREEZE",
 };
 
-/**
- * Render the word portion with match highlighting.
- * Returns colored string for the visible word chars.
- */
+/** Render word with match highlighting */
 function renderWordStr(enemy: Enemy, matched: number, zone: Zone, startIdx: number, endIdx: number): string {
   const visiblePart = enemy.word.slice(startIdx, endIdx);
   const visibleMatchCount = Math.min(visiblePart.length, Math.max(0, matched - startIdx));
@@ -71,8 +67,7 @@ function renderWordStr(enemy: Enemy, matched: number, zone: Zone, startIdx: numb
 
 /**
  * Render a full lane for a living enemy.
- * Three phases: scroll-in → static+wire → elastic injection.
- * Returns raw content string (fieldWidth visual chars) for the lane.
+ * Layout: word LEFT-justified, wire grows from RIGHT toward word, wall on RIGHT.
  */
 function renderLaneContent(
   enemy: Enemy,
@@ -82,7 +77,7 @@ function renderLaneContent(
 ): string {
   const { fieldWidth } = layout();
   const len = enemy.word.length;
-  const anchorCol = fieldWidth - len; // right-justified
+  const anchorCol = 1; // left-justified with 1-char margin
 
   if (enemy.position <= 0) {
     return " ".repeat(fieldWidth);
@@ -91,62 +86,64 @@ function renderLaneContent(
   // --- Phase 1: Fade-in (whole word appears at once, dim → bright) ---
   if (enemy.position < SCROLL_IN) {
     const padding = " ".repeat(anchorCol);
-    // Show full word immediately, but dim during fade
     const wordStr = `${c.dim}${renderWordStr(enemy, matched, zone, 0, len)}`;
     return padding + wordStr;
   }
 
-  // --- Phase 2: Static word + matrix wire (grows LEFT→RIGHT toward word) ---
+  // --- Phase 2: Static word + matrix wire (grows RIGHT→LEFT toward word) ---
   if (enemy.position < INJECTION_START) {
     const wireProgress = (enemy.position - SCROLL_IN) / (INJECTION_START - SCROLL_IN);
-    const maxWireLen = Math.max(0, anchorCol - WIRE_MARGIN);
+    // Wire lives between the word's right edge and the right wall margin
+    const wireAreaStart = anchorCol + len; // just after word
+    const wireAreaEnd = fieldWidth - WIRE_MARGIN; // stop before wall
+    const maxWireLen = Math.max(0, wireAreaEnd - wireAreaStart);
     const wireLen = Math.max(0, Math.round(wireProgress * maxWireLen));
-    // Wire starts at left (near wall) and extends rightward toward the word
-    const wireStart = WIRE_MARGIN;
-    const wireEnd = wireStart + wireLen; // right edge of wire, closing gap with word
-    const gap = anchorCol - wireEnd; // space between wire end and word
+    // Wire grows from right toward the word: right-aligned in wire area
+    const wireStart = wireAreaEnd - wireLen;
+    const gap = wireStart - wireAreaStart; // shrinking gap between word and wire
 
     // Build wire string
     const wireColor = zoneColor(zone);
-    const reversed = matched > 0; // reverse flow when typing
+    const reversed = matched > 0;
     let wire = "";
     for (let i = 0; i < wireLen; i++) {
       wire += wireChar(tick, wireStart + i, reversed);
     }
 
-    const leftPad = " ".repeat(WIRE_MARGIN);
+    const leftPad = " ".repeat(anchorCol);
     const gapPad = " ".repeat(Math.max(0, gap));
     const wordStr = renderWordStr(enemy, matched, zone, 0, len);
 
-    return leftPad + `${wireColor}${c.dim}${wire}${c.reset}` + gapPad + wordStr;
+    return leftPad + wordStr + gapPad + `${wireColor}${c.dim}${wire}${c.reset}`;
   }
 
-  // --- Phase 3: Elastic injection ---
+  // --- Phase 3: Elastic injection (word stretches toward RIGHT wall) ---
   const injProgress = Math.min(1, (enemy.position - INJECTION_START) / (1.0 - INJECTION_START));
 
-  // Compute per-letter positions with staggered elastic easing
+  // Each letter gets its own position; rightmost letters lead (closest to wall)
+  const endAnchor = fieldWidth - WIRE_MARGIN - len; // compressed at right wall
   const letterCols: number[] = [];
   for (let i = 0; i < len; i++) {
-    // Leftmost letters (low i) start moving first
-    const delay = len > 1 ? (i * 0.3) / (len - 1) : 0;
+    // Rightmost letters (high i) start moving first
+    const delay = len > 1 ? ((len - 1 - i) * 0.3) / (len - 1) : 0;
     const lp = Math.max(0, Math.min(1, (injProgress - delay) / (1 - delay)));
-    const eased = lp * lp * lp; // cubic ease-in for snap feel
+    const eased = lp * lp * lp; // cubic ease-in
     const startCol = anchorCol + i;
-    const endCol = i; // letters compress at the wall
+    const endCol = endAnchor + i;
     const col = Math.round(startCol + (endCol - startCol) * eased);
     letterCols.push(col);
   }
 
-  // Build character buffer with letter index tracking
+  // Build character buffer
   const buf: (number | null)[] = new Array(fieldWidth).fill(null);
   for (let i = 0; i < len; i++) {
     const col = letterCols[i]!;
     if (col >= 0 && col < fieldWidth) {
-      buf[col] = i; // store letter index
+      buf[col] = i;
     }
   }
 
-  // Serialize with proper coloring
+  // Serialize with coloring
   const color = enemy.powerUp ? c.magenta : zoneColor(zone);
   let bgColor: string;
   if (zone === "CRITICAL") bgColor = c.bgBrightRed;
@@ -185,31 +182,30 @@ function renderLaneContent(
 /** Render a dead enemy — fading ghost on its lane */
 function renderDeath(enemy: Enemy, tick: number, fieldWidth: number): string {
   const age = tick - enemy.killedAt;
-  const anchorCol = fieldWidth - enemy.word.length;
-  const padding = " ".repeat(Math.max(0, anchorCol));
 
   if (enemy.killedZone === "MISSED") {
     if (enemy.powerUp) {
-      if (age < 3) return `${padding}${c.dim}${enemy.word}${c.reset}`;
+      if (age < 3) return ` ${c.dim}${enemy.word}${c.reset}`;
       return `${c.dim}·${c.reset}`;
     }
-    // Missed enemy — show near the wall (it injected into the system)
-    if (age < 4) return `${c.red}${c.dim}${c.strikethrough}${enemy.word}${c.reset}`;
+    // Missed enemy — show near the right wall (it injected into the system)
+    const rightPad = " ".repeat(Math.max(0, fieldWidth - WIRE_MARGIN - enemy.word.length));
+    if (age < 4) return `${rightPad}${c.red}${c.dim}${c.strikethrough}${enemy.word}${c.reset}`;
     return `${c.dim}·${c.reset}`;
   }
 
-  // Power-up caught
+  // Power-up caught — show at left anchor
   if (enemy.powerUp) {
     const label = POWER_UP_LABELS[enemy.powerUp] || "+??";
-    if (age < 4) return `${padding}${c.magenta}${c.bold}${label}${c.reset}`;
-    if (age < 6) return `${padding}${c.dim}${label}${c.reset}`;
+    if (age < 4) return ` ${c.magenta}${c.bold}${label}${c.reset}`;
+    if (age < 6) return ` ${c.dim}${label}${c.reset}`;
     return `${c.dim}·${c.reset}`;
   }
 
-  // Normal kill — show points at anchor
+  // Normal kill — show points at left anchor
   const color = enemy.killedZone ? zoneColor(enemy.killedZone) : c.dim;
-  if (age < 3) return `${padding}${color}${c.bold}+${enemy.killedPoints}${c.reset}`;
-  if (age < 5) return `${padding}${c.dim}+${enemy.killedPoints}${c.reset}`;
+  if (age < 3) return ` ${color}${c.bold}+${enemy.killedPoints}${c.reset}`;
+  if (age < 5) return ` ${c.dim}+${enemy.killedPoints}${c.reset}`;
   return `${c.dim}·${c.reset}`;
 }
 
@@ -286,7 +282,7 @@ function render(state: GameState): string {
   }
   lines.push(bDiv("═", "╠", "╣"));
 
-  // Wall — erodes from left as HP drops
+  // Wall — on the RIGHT side, erodes as HP drops
   const hpRatio = state.hp / state.maxHp;
   const wallWidth = Math.round(hpRatio * wallMax);
   let wallColor: string;
@@ -296,7 +292,6 @@ function render(state: GameState): string {
   const wallStr = wallWidth > 0
     ? `${wallColor}${"█".repeat(wallWidth)}${c.reset}`
     : `${c.red}${c.bold}|${c.reset}`;
-  // Pad wall to wallMax so content area starts at a fixed column
   const wallPad = " ".repeat(Math.max(0, wallMax - wallWidth));
 
   // Status line (standard only)
@@ -307,7 +302,7 @@ function render(state: GameState): string {
     const statusHint = effects.length > 0
       ? `  ${effects.join("  ")}`
       : `${c.dim}type the word to${c.reset} ${c.red}${c.bold}SQUASH${c.reset}`;
-    lines.push(`${c.cyan}║${c.reset}${wallStr}${wallPad}${statusHint}\x1b[K\x1b[${rightCol}G${c.cyan}║${c.reset}`);
+    lines.push(bLine(`  ${statusHint}`));
   }
 
   // Build lane map
@@ -334,8 +329,7 @@ function render(state: GameState): string {
       const zone = getZone(alive.position);
       const isTarget = target !== null && alive.id === target.id;
       const matched = isTarget ? inputLen : 0;
-      const content = renderLaneContent(alive, matched, zone, state.tick);
-      lines.push(content);
+      lines.push(renderLaneContent(alive, matched, zone, state.tick));
       continue;
     }
 
@@ -348,11 +342,13 @@ function render(state: GameState): string {
     lines.push(`${c.dim}·${c.reset}`);
   }
 
-  // Stamp left border + wall + right border on each lane line
+  // Stamp borders on lane lines: ║{content}{wallPad}{wall}║
+  // Wall is on the RIGHT side now
+  const wallCol = rightCol - wallMax; // cursor position for wall area
   for (let i = 0; i < lanes; i++) {
     const lineIdx = lines.length - lanes + i;
     const raw = lines[lineIdx]!;
-    lines[lineIdx] = `${c.cyan}║${c.reset}${wallStr}${wallPad}` + raw + `\x1b[K\x1b[${rightCol}G${c.cyan}║${c.reset}`;
+    lines[lineIdx] = `${c.cyan}║${c.reset}` + raw + `\x1b[K\x1b[${wallCol}G${wallPad}${wallStr}${c.cyan}║${c.reset}`;
   }
 
   lines.push(bDiv("─", "╟", "╢"));
