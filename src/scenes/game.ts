@@ -2,7 +2,7 @@ import type { Enemy, GameState, Zone } from "../types.js";
 import { NUM_LANES } from "../types.js";
 import { c, bLine, bDiv, WIDTH, WALL_MAX, FIELD_WIDTH, RIGHT_COL, zoneColor, bar, hpColor } from "../render.js";
 import { createGame } from "../game/state.js";
-import { gameTick, processInput, findTarget, getZone } from "../game/logic.js";
+import { gameTick, processInput, findTarget, getZone, comboMultiplier } from "../game/logic.js";
 import type { SceneContext } from "./types.js";
 
 const TICK_MS = 50; // 20fps for smooth movement
@@ -97,7 +97,7 @@ function render(state: GameState): string {
     `  ${c.dim}integrity${c.reset} ${hpBar}  ${c.dim}surge${c.reset} ${surgeBar}`
   ));
   lines.push(bLine(
-    `  ${c.dim}wave${c.reset} ${c.bold}${state.wave + 1}${c.reset}    ${c.dim}x${c.reset}${c.bold}${state.combo}${c.reset}    ${c.bold}${state.score.toLocaleString()}${c.reset}`
+    `  ${c.dim}wave${c.reset} ${c.bold}${state.wave + 1}${c.reset}    ${c.dim}x${c.reset}${c.bold}${state.combo}${c.reset} ${c.yellow}${c.bold}(${comboMultiplier(state.combo)}x)${c.reset}    ${c.bold}${state.score.toLocaleString()}${c.reset}`
   ));
   lines.push(bDiv("═", "╠", "╣"));
 
@@ -114,7 +114,7 @@ function render(state: GameState): string {
   const wallCol = WIDTH - WALL_MAX + 2; // +1 for left border
 
   // Zone markers — manual border + wall
-  lines.push(`${c.cyan}║${c.reset}  ${c.dim}·${c.reset}         ${c.dim}far${c.reset}           ${c.dim}·${c.reset}     ${c.yellow}close${c.reset}    ${c.dim}·${c.reset}  ${c.red}${c.bold}SQUASH${c.reset}\x1b[K\x1b[${wallCol}G${wallStr}\x1b[${RIGHT_COL}G${c.cyan}║${c.reset}`);
+  lines.push(`${c.cyan}║${c.reset}  ${c.dim}·${c.reset}              ${c.dim}far${c.reset}                     ${c.dim}·${c.reset}          ${c.yellow}close${c.reset}        ${c.dim}·${c.reset}   ${c.red}${c.bold}SQUASH${c.reset}\x1b[K\x1b[${wallCol}G${wallStr}\x1b[${RIGHT_COL}G${c.cyan}║${c.reset}`);
 
   // Build lane map — living enemies take priority, dead ones shown as ghosts
   const liveLaneMap = new Map<number, Enemy>();

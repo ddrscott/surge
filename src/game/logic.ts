@@ -15,6 +15,10 @@ const ZONE_MULTIPLIERS: Record<Zone, number> = {
   MISSED: 0,
 };
 
+export function comboMultiplier(combo: number): number {
+  return 1 + Math.floor(combo / 5) * 0.5;
+}
+
 // Speeds tuned for 50ms tick (20fps) — divide old values by 4
 const WAVES: WaveConfig[] = [
   { enemyCount: 5, minSpeed: 0.005, maxSpeed: 0.0075, minWordLength: 3, maxWordLength: 4, spawnInterval: 60 },
@@ -132,6 +136,7 @@ export function processInput(state: GameState): HitResult | null {
 
   // Surge check
   if (state.surgeReady && input === "surge") {
+    const cm = comboMultiplier(state.combo);
     let totalPoints = 0;
     let killCount = 0;
     for (const enemy of state.enemies) {
@@ -139,8 +144,9 @@ export function processInput(state: GameState): HitResult | null {
         enemy.dead = true;
         enemy.killedAt = state.tick;
         enemy.killedZone = "CRITICAL";
-        enemy.killedPoints = enemy.points * 3;
-        totalPoints += enemy.points * 3;
+        const pts = Math.floor(enemy.points * 3 * cm);
+        enemy.killedPoints = pts;
+        totalPoints += pts;
         killCount++;
       }
     }
@@ -169,8 +175,9 @@ export function processInput(state: GameState): HitResult | null {
 
     if (input === target.word.toLowerCase()) {
       const zone = getZone(target.position);
-      const multiplier = ZONE_MULTIPLIERS[zone];
-      let points = target.points * multiplier;
+      const zoneMultiplier = ZONE_MULTIPLIERS[zone];
+      const cm = comboMultiplier(state.combo);
+      let points = Math.floor(target.points * zoneMultiplier * cm);
       let damage = 0;
 
       // Apply double score if active
