@@ -58,7 +58,7 @@ function pickTier(): TermSize {
     const fontSize = Math.floor(Math.min(fontByWidth, fontByHeight));
 
     if (fontSize >= 10) {
-      return { cols: tier.cols, rows: tier.rows, fontSize: Math.min(fontSize, 24) };
+      return { cols: tier.cols, rows: tier.rows, fontSize };
     }
   }
 
