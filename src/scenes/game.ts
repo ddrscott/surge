@@ -126,9 +126,9 @@ function renderDeath(enemy: Enemy, tick: number): string {
   return `  ${c.dim}·${c.reset}`;
 }
 
-/** Build the bottom ╚══[ input ]══╝ border with embedded typing */
+/** Build the bottom ╚══[ input ]══╝ border with score + combo */
 function bottomBorder(state: GameState, target: Enemy | null): string {
-  const { width } = layout();
+  const { width, compact } = layout();
   const input = state.inputBuffer;
   const surgeReady = state.surgeReady;
 
@@ -137,7 +137,6 @@ function bottomBorder(state: GameState, target: Enemy | null): string {
   let color: string;
 
   if (surgeReady && !input) {
-    // Pulsing surge prompt when idle
     displayText = " type surge ";
     color = c.magenta;
   } else if (input) {
@@ -145,25 +144,34 @@ function bottomBorder(state: GameState, target: Enemy | null): string {
     displayText = ` ${input}█ `;
     color = noMatch ? c.red : (surgeReady ? c.magenta : c.cyan);
   } else {
-    // Idle cursor
     displayText = " █ ";
     color = "";
   }
 
+  // Score + combo labels for left/right sides
+  const cm = comboMultiplier(state.combo);
+  const scoreStr = state.score.toLocaleString();
+  const leftLabel = compact ? scoreStr : `${scoreStr}`;
+  const rightLabel = state.combo > 0 ? `${cm}x` : "";
+  const leftLen = leftLabel.length + 1;  // + space padding
+  const rightLen = rightLabel.length > 0 ? rightLabel.length + 1 : 0;
+
   const bracketLen = displayText.length + 2; // [ and ]
-  const fillTotal = Math.max(0, width - bracketLen);
+  const fillTotal = Math.max(0, width - bracketLen - leftLen - rightLen);
   const leftFill = Math.floor(fillTotal / 2);
   const rightFill = fillTotal - leftFill;
 
+  const leftPart = `${c.cyan}╚${c.reset}${c.bold}${c.yellow}${leftLabel}${c.reset}${c.cyan}${"═".repeat(Math.max(0, leftFill))}`;
+  const rightPart = `${"═".repeat(Math.max(0, rightFill))}${c.reset}${state.combo > 0 ? `${c.bold}${c.yellow}${rightLabel}${c.reset}${c.cyan}` : ""}╝${c.reset}`;
+
   if (!input && !surgeReady) {
-    // Dim idle cursor
-    return `${c.cyan}╚${"═".repeat(leftFill)}[${c.dim}${displayText}${c.cyan}]${"═".repeat(rightFill)}╝${c.reset}`;
+    return `${leftPart}[${c.dim}${displayText}${c.cyan}]${rightPart}`;
   }
 
   return (
-    `${c.cyan}╚${"═".repeat(leftFill)}[${c.reset}` +
+    `${leftPart}[${c.reset}` +
     `${c.bold}${color}${displayText}${c.reset}` +
-    `${c.cyan}]${"═".repeat(rightFill)}╝${c.reset}`
+    `${c.cyan}]${rightPart}`
   );
 }
 

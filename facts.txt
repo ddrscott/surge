@@ -38,6 +38,19 @@ Bombardier beetles spray boiling chemicals at enemies.
 Fleas accelerate faster than a space shuttle launch.
 Earwigs got their name from an old myth about ears.
 A swarm of desert locusts eats 423 million pounds a day.
+Ants have two stomachs: one for themselves, one to share.
+Dragonflies can fly backwards and upside down.
+Dragonflies catch 95% of the prey they chase.
+Dragonflies have nearly 360-degree vision.
+Crickets have their ears on their front legs.
+Aphids are born pregnant without needing a mate.
+Some ants can survive underwater for 14 days.
+A bee's wings beat 200 times per second.
+The jewel wasp turns cockroaches into zombies.
+A mosquito's proboscis has 47 sharp edges.
+Termite queens can live up to 50 years.
+A dung beetle can pull 1,141 times its own weight.
+Termite queens can lay 6,000 eggs in a single day.
 
 # --- Computer bug facts ---
 The first computer bug was a real moth found in 1947.
@@ -64,3 +77,9 @@ Knight Capital lost $440 million in 45 minutes from a bug.
 Sony's PSN was down 23 days after a 2011 security breach.
 The Pentium FDIV bug cost Intel $475 million in 1994.
 World of Warcraft's Corrupted Blood plague modeled epidemics.
+Thomas Edison used the word "bug" for faults in 1878.
+Windows 98 blue-screened live on stage for Bill Gates.
+USS Yorktown was disabled by a divide-by-zero error.
+Steam once deleted all files on a Linux user's PC.
+A leap-second bug crashed Cloudflare's DNS in 2017.
+Toyota paid $1.2 billion over a throttle software bug.

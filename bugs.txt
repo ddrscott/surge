@@ -8,6 +8,10 @@ bee
 fly
 bug
 nit
+bot
+asp
+ked
+dor
 
 # --- 4-letter ---
 mite
@@ -44,6 +48,11 @@ swarm
 horde
 mange
 sting
+moult
+pupae
+queen
+toxin
+chirp
 
 # --- 6-letter ---
 hornet
@@ -68,6 +77,11 @@ no-see
 chafer
 hopper
 earworm
+looper
+psocid
+vermin
+sowbug
+redbug
 
 # --- 7-letter ---
 firefly
@@ -97,6 +111,15 @@ stylops
 phasmid
 tabanid
 corn fly
+chigger
+firebrat
+recluse
+skipper
+viceroy
+buckeye
+isopod
+weta
+owlfly
 
 # --- 8-letter ---
 stinkbug
@@ -118,6 +141,18 @@ wood tick
 deer tick
 body lice
 head lice
+huntsman
+tarantula
+horntail
+trapdoor
+scorpion
+ant lion
+snakefly
+screwworm
+roly poly
+dog tick
+cat flea
+rat flea
 
 # --- 9-letter ---
 dragonfly
@@ -150,6 +185,43 @@ mud dauber
 fire ant
 army ant
 leaf miner
+luna moth
+hawk moth
+silk moth
+puss moth
+wax moth
+dust mite
+bird mite
+deer fly
+sand fly
+bee fly
+horn fly
+face fly
+blow fly
+seed bug
+lace bug
+stable fly
+robber fly
+drain fly
+springtail
+bristletail
+swallowtail
+blue morpho
+painted lady
+red admiral
+yellow jacket
+digger wasp
+potter wasp
+cicada killer
+velvet ant
+gall wasp
+mason bee
+sweat bee
+bullet ant
+driver ant
+weaver ant
+crazy ant
+ghost ant
 
 # --- 10-letter ---
 silverfish
@@ -178,6 +250,43 @@ corn borer
 pine borer
 bark borer
 stem borer
+jewel beetle
+rove beetle
+oil beetle
+snout beetle
+boll weevil
+rice weevil
+assassin bug
+kissing bug
+squash bug
+water bug
+backswimmer
+water strider
+giant water bug
+pond skater
+spittlebug
+brown recluse
+black widow
+funnel web
+garden spider
+cellar spider
+cobweb spider
+zebra spider
+peacock spider
+house centipede
+deathstalker
+daddy longlegs
+carpenter bee
+carpenter ant
+house cricket
+mole cricket
+orb weaver
+wolf spider
+orchid mantis
+walking stick
+woolly bear
+bark scorpion
+goliath birdeater
 
 # --- Latin binomials ---
 musca domestica
