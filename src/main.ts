@@ -13,15 +13,37 @@ import { initFacts } from "./game/facts.js";
 const MIN_COLS = 30;
 const MIN_ROWS = 10;
 
-const cols = process.stdout.columns || 80;
-const rows = process.stdout.rows || 24;
+// Fixed game sizes — pick the largest that fits the terminal.
+// 80x24 = landscape reference, 40x15 = compact/square reference.
+const TIERS = [
+  { cols: 80, rows: 25 },
+  { cols: 70, rows: 22 },
+  { cols: 60, rows: 18 },
+  { cols: 50, rows: 16 },
+  { cols: 40, rows: 15 },
+] as const;
 
-if (cols < MIN_COLS || rows < MIN_ROWS) {
+function pickGameSize(termCols: number, termRows: number): { cols: number; rows: number } {
+  for (const tier of TIERS) {
+    if (termCols >= tier.cols && termRows >= tier.rows) {
+      return { cols: tier.cols, rows: tier.rows };
+    }
+  }
+  // Terminal is smaller than all tiers — use what we have
+  return { cols: Math.max(MIN_COLS, termCols), rows: Math.max(MIN_ROWS, termRows) };
+}
+
+const termCols = process.stdout.columns || 80;
+const termRows = process.stdout.rows || 24;
+
+if (termCols < MIN_COLS || termRows < MIN_ROWS) {
   console.error(
-    `Terminal too small: ${cols}x${rows}. Surge requires at least ${MIN_COLS}x${MIN_ROWS}.`
+    `Terminal too small: ${termCols}x${termRows}. Surge requires at least ${MIN_COLS}x${MIN_ROWS}.`
   );
   process.exit(1);
 }
+
+const { cols, rows } = pickGameSize(termCols, termRows);
 
 if (!process.stdin.isTTY) {
   console.error("Surge requires an interactive terminal.");
@@ -34,10 +56,11 @@ const factsRaw = readFileSync(join(process.cwd(), "facts.txt"), "utf-8");
 initWords(bugsRaw);
 initFacts(factsRaw);
 
-// Initialize terminal size and listen for resize
+// Initialize game size and listen for resize
 setTermSize(cols, rows);
 process.stdout.on("resize", () => {
-  setTermSize(process.stdout.columns || 80, process.stdout.rows || 24);
+  const size = pickGameSize(process.stdout.columns || 80, process.stdout.rows || 24);
+  setTermSize(size.cols, size.rows);
 });
 
 function writeFrame(data: string) {

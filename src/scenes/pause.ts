@@ -1,5 +1,5 @@
 import type { GameState } from "../types.js";
-import { bLine, bDiv, decorBar, padToRows, c, renderTitleWord } from "../render.js";
+import { bLine, bDiv, decorBar, padToRows, c, renderTitleWord, menuPromptBorder, matchesAnyOption, cursorToPrompt } from "../render.js";
 import type { SceneContext } from "./types.js";
 
 let handler: ((key: string) => void) | null = null;
@@ -31,12 +31,11 @@ function renderScreen(inputBuffer: string): string {
   lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord}   ${c.dim}to walk away${c.reset}`));
   lines.push(bLine(`  ${c.dim}or press${c.reset} ${c.yellow}${c.bold}ESC${c.reset} ${c.dim}to resume${c.reset}`));
   lines.push(bLine(""));
-  lines.push(bLine(`  ${c.dim}█${c.reset}`));
 
   padToRows(lines);
-  lines.push(bDiv("═", "╚", "╝"));
+  lines.push(menuPromptBorder(inputBuffer));
 
-  return "\x1b[H" + lines.join("\n") + "\x1b[J";
+  return "\x1b[H" + lines.join("\n") + "\x1b[J" + cursorToPrompt(inputBuffer);
 }
 
 export function enter(ctx: SceneContext, data?: unknown): void {
@@ -65,6 +64,7 @@ export function enter(ctx: SceneContext, data?: unknown): void {
     }
 
     if (key.length === 1 && key >= " " && key <= "~") {
+      if (!matchesAnyOption(inputBuffer, key, ["resume", "quit"])) return;
       inputBuffer += key;
       ctx.writeFrame(renderScreen(inputBuffer));
 

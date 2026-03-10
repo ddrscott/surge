@@ -1,4 +1,4 @@
-import { layout, bLine, bDiv, decorBar, padToRows, c, renderTitleWord } from "../render.js";
+import { layout, bLine, bDiv, decorBar, padToRows, c, renderTitleWord, menuPromptBorder, matchesAnyOption, cursorToPrompt } from "../render.js";
 import type { SceneContext } from "./types.js";
 
 let handler: ((key: string) => void) | null = null;
@@ -51,7 +51,8 @@ function renderScreen(titleBuffer: string): string {
     lines.push(bLine(dbar));
     lines.push(bLine(""));
     for (const line of banner) {
-      lines.push(bLine(`${c.cyan}${c.bold}${center(line, inner)}${c.reset}`));
+      const padded = line + " ".repeat(bannerWidth - line.length);
+      lines.push(bLine(`${c.cyan}${c.bold}${center(padded, inner)}${c.reset}`));
     }
     lines.push(bLine(""));
     lines.push(bLine(dbar));
@@ -79,12 +80,11 @@ function renderScreen(titleBuffer: string): string {
   lines.push(bLine(`  ${c.dim}type${c.reset} ${helpWord}  ${c.dim}for briefing${c.reset}`));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord}  ${c.dim}to walk away${c.reset}`));
   lines.push(bLine(""));
-  lines.push(bLine(`  ${c.dim}█${c.reset}`));
 
   padToRows(lines);
-  lines.push(bDiv("═", "╚", "╝"));
+  lines.push(menuPromptBorder(titleBuffer));
 
-  return "\x1b[H" + lines.join("\n") + "\x1b[J";
+  return "\x1b[H" + lines.join("\n") + "\x1b[J" + cursorToPrompt(titleBuffer);
 }
 
 export function enter(ctx: SceneContext): void {
@@ -109,6 +109,7 @@ export function enter(ctx: SceneContext): void {
     }
 
     if (key.length === 1 && key >= " " && key <= "~") {
+      if (!matchesAnyOption(titleBuffer, key, ["surge", "help", "quit"])) return;
       titleBuffer += key;
       ctx.writeFrame(renderScreen(titleBuffer));
 

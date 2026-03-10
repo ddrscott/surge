@@ -243,24 +243,28 @@ function bottomBorder(state: GameState, target: Enemy | null): string {
   const surgeReady = state.surgeReady;
 
   const prompt = "$ rm ";
+  const MIN_PROMPT = 12;
   let inputDisplay: string;
+  let contentLen: number;
   let color: string;
 
   if (surgeReady && !input) {
-    inputDisplay = `${c.dim}${prompt}${c.reset}${c.magenta}${c.bold}type surge${c.reset} `;
+    contentLen = prompt.length + "type surge".length + 1;
+    const padLen = Math.max(0, MIN_PROMPT - contentLen);
+    inputDisplay = `${c.dim}${prompt}${c.reset}${c.magenta}${c.bold}type surge${c.reset}${" ".repeat(padLen + 1)}`;
   } else if (input) {
     const noMatch = target === null;
     color = noMatch ? c.red : (surgeReady ? c.magenta : c.cyan);
-    inputDisplay = `${c.dim}${prompt}${c.reset}${c.bold}${color}${input}█${c.reset} `;
+    contentLen = prompt.length + input.length + 1;
+    const padLen = Math.max(0, MIN_PROMPT - contentLen);
+    inputDisplay = `${c.dim}${prompt}${c.reset}${c.bold}${color}${input}${c.reset}${" ".repeat(padLen + 1)}`;
   } else {
-    inputDisplay = `${c.dim}${prompt}█${c.reset} `;
+    contentLen = prompt.length + 1;
+    const padLen = Math.max(0, MIN_PROMPT - contentLen);
+    inputDisplay = `${c.dim}${prompt}${c.reset}${" ".repeat(padLen + 1)}`;
   }
 
-  const inputVisualLen = surgeReady && !input
-    ? prompt.length + "type surge".length + 1
-    : input
-      ? prompt.length + input.length + 2  // +█ +space
-      : prompt.length + 2;               // +█ +space
+  const inputVisualLen = Math.max(MIN_PROMPT, contentLen);
 
   const cm = comboMultiplier(state.combo);
   const scoreStr = state.score.toLocaleString();
@@ -434,7 +438,9 @@ function render(state: GameState): string {
   lines.push(bDiv("─", "╟", "╢"));
   lines.push(bottomBorder(state, target));
 
-  return "\x1b[H" + lines.join("\n") + "\x1b[J";
+  const { rows } = layout();
+  const cursorCol = 2 + "$ rm ".length + state.inputBuffer.length + 1;
+  return "\x1b[H" + lines.join("\n") + `\x1b[J\x1b[${rows};${cursorCol}H`;
 }
 
 const DEATH_ANIM_TICKS = 50; // ~2.5s at 50ms/tick
@@ -545,8 +551,6 @@ function renderDeathOverlay(frame: string, animTick: number, state: GameState): 
 export function enter(ctx: SceneContext, data?: unknown): void {
   const state = (data as GameState) ?? createGame();
   deathAnimStart = null;
-  ctx.writeFrame("\x1b[?25l"); // hide cursor
-
   tickInterval = setInterval(() => {
     gameTick(state);
 
@@ -603,5 +607,4 @@ export function exit(ctx: SceneContext): void {
     ctx.stdin.removeListener("data", handler);
     handler = null;
   }
-  ctx.writeFrame("\x1b[?25h"); // show cursor
 }

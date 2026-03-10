@@ -54,6 +54,7 @@ export const c = {
   bgMagenta: "\x1b[45m",
   bgBrightRed: "\x1b[101m",
   black: "\x1b[30m",
+  brightGreen: "\x1b[92m",
   strikethrough: "\x1b[9m",
 };
 
@@ -119,4 +120,32 @@ export function padToRows(lines: string[], borderColor = c.cyan): void {
   for (let i = 0; i < needed; i++) {
     lines.push(bLine("", borderColor));
   }
+}
+
+/** Build menu bottom border: ╚[ $ cd input ]════════╝ */
+export function menuPromptBorder(input: string, borderColor = c.cyan): string {
+  const { width } = layout();
+  const prompt = "$ cd ";
+  const MIN_PROMPT = 12;
+  const contentLen = prompt.length + (input ? input.length + 1 : 1); // +space after input
+  const padLen = Math.max(0, MIN_PROMPT - contentLen);
+  const inputDisplay = input
+    ? `${c.dim}${prompt}${c.reset}${c.bold}${c.cyan}${input}${c.reset}${" ".repeat(padLen + 1)}`
+    : `${c.dim}${prompt}${c.reset}${" ".repeat(padLen + 1)}`;
+  const bracketLen = Math.max(MIN_PROMPT, contentLen) + 2; // [ ... ]
+  const fillLen = Math.max(0, width - bracketLen - 2 + 2); // ╚ + ╝
+  return `${borderColor}╚[${c.reset}${inputDisplay}${borderColor}]${"═".repeat(fillLen)}╝${c.reset}`;
+}
+
+/** ANSI sequence to park cursor at the prompt input position on the bottom row */
+export function cursorToPrompt(input: string, promptStr = "$ cd "): string {
+  const { rows } = layout();
+  const cursorCol = 2 + promptStr.length + input.length + 1;
+  return `\x1b[${rows};${cursorCol}H`;
+}
+
+/** Check if adding `ch` to `buffer` still prefixes at least one option */
+export function matchesAnyOption(buffer: string, ch: string, options: string[]): boolean {
+  const candidate = (buffer + ch).toLowerCase();
+  return options.some(opt => opt.startsWith(candidate));
 }

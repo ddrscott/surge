@@ -1,5 +1,5 @@
 import type { GameState } from "../types.js";
-import { layout, c, bLine, bDiv, padToRows, renderTitleWord } from "../render.js";
+import { layout, c, bLine, bDiv, padToRows, renderTitleWord, menuPromptBorder, matchesAnyOption, cursorToPrompt } from "../render.js";
 import { getRandomFact } from "../game/facts.js";
 import type { SceneContext } from "./types.js";
 
@@ -49,18 +49,17 @@ function renderScreen(state: GameState, inputBuffer: string, fact: string): stri
   lines.push(bLine(`${c.dim}  wave ${c.white}${state.wave + 1}${c.dim} · ${c.white}${c.bold}${state.score.toLocaleString()}${c.reset}${c.dim} pts · streak ${c.white}${c.bold}${state.maxCombo}${c.reset}`, rc));
   lines.push(bLine("", rc));
   for (const fl of factLines) {
-    lines.push(bLine(`  ${c.dim}${c.yellow}${fl}${c.reset}`, rc));
+    lines.push(bLine(`  ${c.brightGreen}${fl}${c.reset}`, rc));
   }
   lines.push(bLine("", rc));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${jackWord} ${c.dim}to jack back in${c.reset}`, rc));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord} ${c.dim}to walk away${c.reset}`, rc));
   lines.push(bLine("", rc));
-  lines.push(bLine(`  ${c.dim}█${c.reset}`, rc));
 
   padToRows(lines, rc);
-  lines.push(bDiv("═", "╚", "╝", rc));
+  lines.push(menuPromptBorder(inputBuffer, rc));
 
-  return "\x1b[H" + lines.join("\n") + "\x1b[J";
+  return "\x1b[H" + lines.join("\n") + "\x1b[J" + cursorToPrompt(inputBuffer);
 }
 
 export function enter(ctx: SceneContext, data?: unknown): void {
@@ -88,6 +87,7 @@ export function enter(ctx: SceneContext, data?: unknown): void {
     }
 
     if (key.length === 1 && key >= " " && key <= "~") {
+      if (!matchesAnyOption(inputBuffer, key, ["jack", "quit"])) return;
       inputBuffer += key;
       ctx.writeFrame(renderScreen(state, inputBuffer, fact));
 

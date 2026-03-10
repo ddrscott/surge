@@ -7,3 +7,4 @@
 - [x] Rest the cursor block `█` in the bottom center of the frame
 - [x] Hitstun triggers when wire touches the word (gap=0) instead of on wall impact — `src/game/logic.ts`, `src/scenes/game.ts`
 - [x] Show centered "Wave N" toast banner between rounds during the calm period — `src/scenes/game.ts`, `src/game/logic.ts`
+- [ ] Randomize matrix wire characters per-wire — each wire currently shows the same repeating hex pattern — [detail](work-queue/randomize-wire-chars.md)
