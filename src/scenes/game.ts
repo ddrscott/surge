@@ -2,7 +2,7 @@ import type { Enemy, GameState, Zone } from "../types.js";
 import { NUM_LANES } from "../types.js";
 import { c, bLine, bDiv, WIDTH, WALL_MAX, FIELD_WIDTH, RIGHT_COL, zoneColor, bar, hpColor } from "../render.js";
 import { createGame } from "../game/state.js";
-import { gameTick, processInput, findTarget, getZone, comboMultiplier } from "../game/logic.js";
+import { gameTick, processInput, findTarget, getZone, comboMultiplier, revealedCount } from "../game/logic.js";
 import type { SceneContext } from "./types.js";
 
 const TICK_MS = 50; // 20fps for smooth movement
@@ -10,33 +10,37 @@ const TICK_MS = 50; // 20fps for smooth movement
 let handler: ((key: string) => void) | null = null;
 let tickInterval: ReturnType<typeof setInterval> | null = null;
 
-/** Render a living enemy word with bg highlight on matched letters */
-function renderWord(enemy: Enemy, matched: number, zone: Zone): string {
+/** Render a living enemy word — only revealed letters are shown (typewriter effect) */
+function renderWord(enemy: Enemy, matched: number, zone: Zone, revealed: number): string {
+  const visiblePart = enemy.word.slice(0, revealed);
+  const hiddenCount = enemy.word.length - revealed;
+  const hiddenPart = hiddenCount > 0 ? `${c.dim}${"·".repeat(hiddenCount)}${c.reset}` : "";
+
   // Power-ups always render in magenta
   if (enemy.powerUp) {
     if (matched === 0) {
-      return `${c.magenta}${c.bold}${enemy.word}${c.reset}`;
+      return `${c.magenta}${c.bold}${visiblePart}${c.reset}${hiddenPart}`;
     }
-    const matchedPart = enemy.word.slice(0, matched);
-    const remaining = enemy.word.slice(matched);
-    return `${c.bgMagenta}${c.black}${c.bold}${matchedPart}${c.reset}${c.magenta}${c.bold}${remaining}${c.reset}`;
+    const matchedPart = visiblePart.slice(0, matched);
+    const remaining = visiblePart.slice(matched);
+    return `${c.bgMagenta}${c.black}${c.bold}${matchedPart}${c.reset}${c.magenta}${c.bold}${remaining}${c.reset}${hiddenPart}`;
   }
 
   const color = zoneColor(zone);
 
   if (matched === 0) {
-    return `${color}${c.bold}${enemy.word}${c.reset}`;
+    return `${color}${c.bold}${visiblePart}${c.reset}${hiddenPart}`;
   }
 
-  const matchedPart = enemy.word.slice(0, matched);
-  const remaining = enemy.word.slice(matched);
+  const matchedPart = visiblePart.slice(0, matched);
+  const remaining = visiblePart.slice(matched);
 
   let bgColor: string;
   if (zone === "CRITICAL") bgColor = c.bgBrightRed;
   else if (zone === "RISKY") bgColor = c.bgYellow + c.black;
   else bgColor = c.bgGreen + c.black;
 
-  return `${bgColor}${c.bold}${matchedPart}${c.reset}${color}${c.bold}${remaining}${c.reset}`;
+  return `${bgColor}${c.bold}${matchedPart}${c.reset}${color}${c.bold}${remaining}${c.reset}${hiddenPart}`;
 }
 
 const POWER_UP_LABELS: Record<string, string> = {
@@ -46,10 +50,15 @@ const POWER_UP_LABELS: Record<string, string> = {
   slow: "FREEZE",
 };
 
+/** Fixed column where words appear (right-aligned in the field) */
+function wordCol(enemy: Enemy): number {
+  return Math.max(0, FIELD_WIDTH - enemy.word.length - 2);
+}
+
 /** Render a dead enemy — fading ghost on its lane */
 function renderDeath(enemy: Enemy, tick: number): string {
   const age = tick - enemy.killedAt;
-  const col = Math.floor(enemy.position * FIELD_WIDTH);
+  const col = wordCol(enemy);
   const padding = " ".repeat(Math.max(0, col));
 
   if (enemy.killedZone === "MISSED") {
@@ -114,7 +123,7 @@ function render(state: GameState): string {
   const wallCol = WIDTH - WALL_MAX + 2; // +1 for left border
 
   // Zone markers — manual border + wall
-  lines.push(`${c.cyan}║${c.reset}  ${c.dim}·${c.reset}              ${c.dim}far${c.reset}                     ${c.dim}·${c.reset}          ${c.yellow}close${c.reset}        ${c.dim}·${c.reset}   ${c.red}${c.bold}SQUASH${c.reset}\x1b[K\x1b[${wallCol}G${wallStr}\x1b[${RIGHT_COL}G${c.cyan}║${c.reset}`);
+  lines.push(`${c.cyan}║${c.reset}  ${c.dim}·${c.reset}                                        ${c.dim}type the word to${c.reset} ${c.red}${c.bold}SQUASH${c.reset}\x1b[K\x1b[${wallCol}G${wallStr}\x1b[${RIGHT_COL}G${c.cyan}║${c.reset}`);
 
   // Build lane map — living enemies take priority, dead ones shown as ghosts
   const liveLaneMap = new Map<number, Enemy>();
@@ -137,19 +146,20 @@ function render(state: GameState): string {
   for (let lane = 0; lane < NUM_LANES; lane++) {
     const alive = liveLaneMap.get(lane);
     if (alive) {
-      const col = Math.floor(alive.position * FIELD_WIDTH);
+      const col = wordCol(alive);
       const zone = getZone(alive.position);
+      const revealed = revealedCount(alive);
       const padding = " ".repeat(Math.max(0, col));
       const isTarget = target !== null && alive.id === target.id;
       const matched = isTarget ? inputLen : 0;
-      const wordStr = renderWord(alive, matched, zone);
+      const wordStr = renderWord(alive, matched, zone, revealed);
 
       let marker: string;
       if (alive.powerUp) {
         marker = `${c.magenta}${c.bold}*${c.reset}`;
-      } else if (alive.position > 0.9) marker = `${c.red}${c.bold}>>>>${c.reset}`;
-      else if (alive.position > 0.75) marker = `${c.red}>>${c.reset}`;
-      else if (alive.position > 0.5) marker = `${c.yellow}>${c.reset}`;
+      } else if (alive.position >= 1.0) marker = `${c.red}${c.bold}!!!!${c.reset}`;
+      else if (alive.position >= 0.85) marker = `${c.red}!!${c.reset}`;
+      else if (alive.position >= 0.5) marker = `${c.yellow}!${c.reset}`;
       else marker = `${c.dim}·${c.reset}`;
 
       lines.push(`  ${padding}${wordStr} ${marker}`);

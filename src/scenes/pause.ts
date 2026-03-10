@@ -17,17 +17,21 @@ function renderScreen(inputBuffer: string): string {
     "quit"
   );
 
+  const bar = `${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`;
+
   lines.push("\x1b[H");
   lines.push(bDiv("═", "╔", "╗"));
   lines.push(bLine(""));
   lines.push(bLine(""));
   lines.push(bLine(""));
   lines.push(bLine(""));
-  lines.push(bLine(`${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`));
+  lines.push(bLine(""));
+  lines.push(bLine(""));
+  lines.push(bLine(bar));
   lines.push(bLine(""));
   lines.push(bLine(`${c.yellow}${c.bold}              PAUSED${c.reset}`));
   lines.push(bLine(""));
-  lines.push(bLine(`${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`));
+  lines.push(bLine(bar));
   lines.push(bLine(""));
   lines.push(bLine(""));
   lines.push(bLine(`              ${c.dim}type${c.reset} ${resumeWord} ${c.dim}to get back in${c.reset}`));
@@ -35,6 +39,7 @@ function renderScreen(inputBuffer: string): string {
   lines.push(bLine(`              ${c.dim}or press${c.reset} ${c.yellow}${c.bold}ESC${c.reset} ${c.dim}to resume${c.reset}`));
   lines.push(bLine(""));
   lines.push(bLine(`              ${c.dim}█${c.reset}`));
+  lines.push(bLine(""));
   lines.push(bLine(""));
   lines.push(bLine(""));
   lines.push(bDiv("═", "╚", "╝"));

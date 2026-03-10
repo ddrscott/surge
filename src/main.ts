@@ -5,8 +5,8 @@ import * as gameoverScene from "./scenes/gameover.js";
 import * as pauseScene from "./scenes/pause.js";
 import type { SceneContext } from "./scenes/types.js";
 
-const MIN_COLS = 62;
-const MIN_ROWS = 22;
+const MIN_COLS = 82;
+const MIN_ROWS = 24;
 
 const cols = process.stdout.columns || 80;
 const rows = process.stdout.rows || 24;

@@ -4,8 +4,8 @@ import { getWord, getPowerUp } from "./words.js";
 
 const ZONE_THRESHOLDS = {
   SAFE: 0.5,
-  RISKY: 0.75,
-  CRITICAL: 1.0,
+  RISKY: 0.85,
+  CRITICAL: 1.3,
 };
 
 const ZONE_MULTIPLIERS: Record<Zone, number> = {
@@ -19,16 +19,17 @@ export function comboMultiplier(combo: number): number {
   return 1 + Math.floor(combo / 5) * 0.5;
 }
 
-// Speeds tuned for 50ms tick (20fps) — divide old values by 4
+// Speeds are letters-per-tick for typewriter reveal (50ms tick = 20fps)
+// e.g. 0.05 lpt on a 4-letter word → 80 ticks (4s) to fully reveal
 const WAVES: WaveConfig[] = [
-  { enemyCount: 5, minSpeed: 0.005, maxSpeed: 0.0075, minWordLength: 3, maxWordLength: 4, spawnInterval: 60 },
-  { enemyCount: 7, minSpeed: 0.005, maxSpeed: 0.010, minWordLength: 3, maxWordLength: 5, spawnInterval: 48 },
-  { enemyCount: 9, minSpeed: 0.006, maxSpeed: 0.011, minWordLength: 3, maxWordLength: 6, spawnInterval: 40 },
-  { enemyCount: 11, minSpeed: 0.007, maxSpeed: 0.013, minWordLength: 4, maxWordLength: 7, spawnInterval: 36 },
-  { enemyCount: 13, minSpeed: 0.007, maxSpeed: 0.014, minWordLength: 4, maxWordLength: 8, spawnInterval: 32 },
-  { enemyCount: 15, minSpeed: 0.009, maxSpeed: 0.015, minWordLength: 4, maxWordLength: 9, spawnInterval: 28 },
-  { enemyCount: 18, minSpeed: 0.009, maxSpeed: 0.016, minWordLength: 5, maxWordLength: 10, spawnInterval: 24 },
-  { enemyCount: 20, minSpeed: 0.010, maxSpeed: 0.018, minWordLength: 5, maxWordLength: 11, spawnInterval: 20 },
+  { enemyCount: 5, minSpeed: 0.04, maxSpeed: 0.07, minWordLength: 3, maxWordLength: 4, spawnInterval: 60 },
+  { enemyCount: 7, minSpeed: 0.04, maxSpeed: 0.09, minWordLength: 3, maxWordLength: 5, spawnInterval: 48 },
+  { enemyCount: 9, minSpeed: 0.05, maxSpeed: 0.10, minWordLength: 3, maxWordLength: 6, spawnInterval: 40 },
+  { enemyCount: 11, minSpeed: 0.06, maxSpeed: 0.12, minWordLength: 4, maxWordLength: 7, spawnInterval: 36 },
+  { enemyCount: 13, minSpeed: 0.06, maxSpeed: 0.14, minWordLength: 4, maxWordLength: 8, spawnInterval: 32 },
+  { enemyCount: 15, minSpeed: 0.08, maxSpeed: 0.16, minWordLength: 4, maxWordLength: 9, spawnInterval: 28 },
+  { enemyCount: 18, minSpeed: 0.08, maxSpeed: 0.18, minWordLength: 5, maxWordLength: 10, spawnInterval: 24 },
+  { enemyCount: 20, minSpeed: 0.10, maxSpeed: 0.22, minWordLength: 5, maxWordLength: 11, spawnInterval: 20 },
 ];
 
 function getWaveConfig(wave: number): WaveConfig {
@@ -61,23 +62,27 @@ function pickLane(state: GameState): number {
 }
 
 export function getZone(position: number): Zone {
-  if (position >= 1.0) return "MISSED";
+  if (position >= ZONE_THRESHOLDS.CRITICAL) return "MISSED";
   if (position >= ZONE_THRESHOLDS.RISKY) return "CRITICAL";
   if (position >= ZONE_THRESHOLDS.SAFE) return "RISKY";
   return "SAFE";
 }
 
+/** How many letters of an enemy's word are currently revealed */
+export function revealedCount(enemy: Enemy): number {
+  return Math.min(enemy.word.length, Math.floor(enemy.position * enemy.word.length));
+}
+
 function spawnEnemy(state: GameState, config: WaveConfig): Enemy {
   const word = getWord(config.minWordLength, config.maxWordLength);
+  const speed = randBetween(config.minSpeed, config.maxSpeed);
   return {
     id: nextEnemyId++,
     word,
     position: 0,
-    speed: randBetween(config.minSpeed, config.maxSpeed),
-    speedPhase: Math.random() * Math.PI * 2,
-    speedWobble: randBetween(0.15, 0.35),
+    speed,
     damage: 10 + word.length * 2,
-    points: word.length * 10,
+    points: Math.round(speed * word.length * 500),
     dead: false,
     spawnedAt: state.tick,
     lane: pickLane(state),
@@ -90,15 +95,14 @@ function spawnEnemy(state: GameState, config: WaveConfig): Enemy {
 
 function spawnPowerUp(state: GameState, config: WaveConfig): Enemy {
   const pu = getPowerUp();
+  const speed = randBetween(config.maxSpeed * 1.5, config.maxSpeed * 2.5);
   return {
     id: nextEnemyId++,
     word: pu.word,
     position: 0,
-    speed: randBetween(config.maxSpeed * 1.5, config.maxSpeed * 2.5),
-    speedPhase: Math.random() * Math.PI * 2,
-    speedWobble: randBetween(0.05, 0.15),
+    speed,
     damage: 0,
-    points: pu.word.length * 10,
+    points: Math.round(speed * pu.word.length * 500),
     dead: false,
     spawnedAt: state.tick,
     lane: pickLane(state),
@@ -114,7 +118,12 @@ export function findTarget(state: GameState): Enemy | null {
   if (!input) return null;
 
   const matches = state.enemies
-    .filter((e) => !e.dead && e.word.toLowerCase().startsWith(input))
+    .filter((e) => {
+      if (e.dead) return false;
+      const revealed = revealedCount(e);
+      if (revealed < input.length) return false; // can't match more than revealed
+      return e.word.toLowerCase().startsWith(input);
+    })
     .sort((a, b) => b.position - a.position);
 
   if (state.targetId !== null) {
@@ -203,7 +212,7 @@ export function processInput(state: GameState): HitResult | null {
           state.surgeMeter += 1;
         }
 
-        if (target.position > 0.9) {
+        if (target.position > 1.1) {
           damage = Math.floor(target.damage * 0.3);
           state.hp -= damage;
         }
@@ -278,17 +287,16 @@ export function gameTick(state: GameState): void {
   // Slow effect multiplier
   const slowFactor = state.slowUntil > state.tick ? 0.4 : 1.0;
 
-  // Move enemies with wobble for organic feel
+  // Reveal letters (typewriter): position = fraction of word revealed
   for (const enemy of state.enemies) {
     if (enemy.dead) continue;
 
-    const wobble = 1 + Math.sin(state.tick * 0.08 + enemy.speedPhase) * enemy.speedWobble;
-    const urgency = 1 + enemy.position * 0.3;
     // Power-ups ignore slow (they're helpers, not enemies)
     const slow = enemy.powerUp ? 1.0 : slowFactor;
-    enemy.position += enemy.speed * wobble * urgency * slow;
+    // speed is letters-per-tick; convert to position units
+    enemy.position += (enemy.speed / enemy.word.length) * slow;
 
-    if (enemy.position >= 1.0) {
+    if (enemy.position >= ZONE_THRESHOLDS.CRITICAL) {
       enemy.dead = true;
       enemy.killedAt = state.tick;
       enemy.killedZone = "MISSED";

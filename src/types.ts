@@ -3,16 +3,13 @@ export type PowerUpEffect = "heal" | "surge_boost" | "double_score" | "slow";
 export interface Enemy {
   id: number;
   word: string;
-  /** Position from 0 (spawn) to 1 (reached player) */
+  /** Reveal progress from 0 (hidden) to 1+ (fully revealed, grace period) */
   position: number;
-  /** Base speed: position units per tick */
+  /** Reveal speed: letters per tick */
   speed: number;
-  /** Speed wobble: slight oscillation for organic feel */
-  speedPhase: number;
-  speedWobble: number;
-  /** Base damage if it reaches the player */
+  /** Base damage if it times out */
   damage: number;
-  /** Point value */
+  /** Point value (speed × length scaled) */
   points: number;
   /** Whether this enemy has been killed */
   dead: boolean;
@@ -30,7 +27,7 @@ export interface Enemy {
   powerUp: PowerUpEffect | null;
 }
 
-export const NUM_LANES = 8;
+export const NUM_LANES = 14;
 
 export type Zone = "SAFE" | "RISKY" | "CRITICAL" | "MISSED";
 
@@ -67,7 +64,9 @@ export interface GameState {
 
 export interface WaveConfig {
   enemyCount: number;
+  /** Min reveal speed: letters per tick */
   minSpeed: number;
+  /** Max reveal speed: letters per tick */
   maxSpeed: number;
   minWordLength: number;
   maxWordLength: number;

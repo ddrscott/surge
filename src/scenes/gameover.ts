@@ -19,8 +19,9 @@ function renderScreen(state: GameState, inputBuffer: string): string {
   );
 
   lines.push("\x1b[H");
-  lines.push(bLine("", rc));
   lines.push(bDiv("═", "╔", "╗", rc));
+  lines.push(bLine("", rc));
+  lines.push(bLine("", rc));
   lines.push(bLine("", rc));
   lines.push(bLine("", rc));
   lines.push(bLine("", rc));
@@ -37,6 +38,8 @@ function renderScreen(state: GameState, inputBuffer: string): string {
   lines.push(bLine(`              ${c.dim}type${c.reset} ${quitWord} ${c.dim}to walk away${c.reset}`, rc));
   lines.push(bLine("", rc));
   lines.push(bLine(`              ${c.dim}█${c.reset}`, rc));
+  lines.push(bLine("", rc));
+  lines.push(bLine("", rc));
   lines.push(bLine("", rc));
   lines.push(bDiv("═", "╚", "╝", rc));
 

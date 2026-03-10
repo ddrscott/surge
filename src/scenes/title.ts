@@ -13,29 +13,36 @@ function renderScreen(titleBuffer: string): string {
     "help".startsWith(input) ? titleBuffer : "",
     "help"
   );
+  const quitWord = renderTitleWord(
+    "quit".startsWith(input) ? titleBuffer : "",
+    "quit"
+  );
+
+  const bar = `${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`;
 
   const lines: string[] = [];
   lines.push("\x1b[H");
   lines.push(bDiv("═", "╔", "╗"));
   lines.push(bLine(""));
-  lines.push(bLine(`${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`));
+  lines.push(bLine(bar));
   lines.push(bLine(""));
-  lines.push(bLine(`${c.cyan}${c.bold}    ███████ ██    ██ ██████   ██████  ███████${c.reset}`));
-  lines.push(bLine(`${c.cyan}${c.bold}    ██      ██    ██ ██   ██ ██       ██${c.reset}`));
-  lines.push(bLine(`${c.cyan}${c.bold}    ███████ ██    ██ ██████  ██   ███ █████${c.reset}`));
-  lines.push(bLine(`${c.cyan}${c.bold}         ██ ██    ██ ██   ██ ██    ██ ██${c.reset}`));
-  lines.push(bLine(`${c.cyan}${c.bold}    ███████  ██████  ██   ██  ██████  ███████${c.reset}`));
+  lines.push(bLine(`${c.cyan}${c.bold}                  ███████ ██    ██ ██████   ██████  ███████${c.reset}`));
+  lines.push(bLine(`${c.cyan}${c.bold}                  ██      ██    ██ ██   ██ ██       ██${c.reset}`));
+  lines.push(bLine(`${c.cyan}${c.bold}                  ███████ ██    ██ ██████  ██   ███ █████${c.reset}`));
+  lines.push(bLine(`${c.cyan}${c.bold}                       ██ ██    ██ ██   ██ ██    ██ ██${c.reset}`));
+  lines.push(bLine(`${c.cyan}${c.bold}                  ███████  ██████  ██   ██  ██████  ███████${c.reset}`));
   lines.push(bLine(""));
-  lines.push(bLine(`${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`));
+  lines.push(bLine(bar));
   lines.push(bLine(""));
   lines.push(bLine(`${c.dim}    The system is infested.${c.reset}`));
   lines.push(bLine(`${c.dim}    Bugs are crawling through memory.${c.reset}`));
   lines.push(bLine(`${c.dim}    Name them to squash them.${c.reset}`));
   lines.push(bLine(""));
-  lines.push(bLine(`${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`));
+  lines.push(bLine(bar));
   lines.push(bLine(""));
   lines.push(bLine(`    ${c.dim}type${c.reset} ${surgeWord} ${c.dim}to jack in${c.reset}`));
   lines.push(bLine(`    ${c.dim}type${c.reset} ${helpWord}  ${c.dim}for briefing${c.reset}`));
+  lines.push(bLine(`    ${c.dim}type${c.reset} ${quitWord}  ${c.dim}to walk away${c.reset}`));
   lines.push(bLine(""));
   lines.push(bLine(`    ${c.dim}█${c.reset}`));
   lines.push(bDiv("═", "╚", "╝"));
@@ -73,6 +80,9 @@ export function enter(ctx: SceneContext): void {
         ctx.navigate("game");
       } else if (titleBuffer.toLowerCase() === "help") {
         ctx.navigate("help");
+      } else if (titleBuffer.toLowerCase() === "quit") {
+        ctx.cleanup();
+        process.exit(0);
       }
     }
   };
