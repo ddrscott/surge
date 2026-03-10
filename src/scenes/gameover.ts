@@ -72,8 +72,7 @@ export function enter(ctx: SceneContext, data?: unknown): void {
 
   handler = (key: string) => {
     if (key === "\x03") {
-      ctx.cleanup();
-      process.exit(0);
+      ctx.exit();
     }
 
     if (key === "\x7f" || key === "\b") {
@@ -95,8 +94,7 @@ export function enter(ctx: SceneContext, data?: unknown): void {
       if (inputBuffer.toLowerCase() === "jack") {
         ctx.navigate("game");
       } else if (inputBuffer.toLowerCase() === "quit") {
-        ctx.cleanup();
-        process.exit(0);
+        ctx.exit();
       }
     }
   };

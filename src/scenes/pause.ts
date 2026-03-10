@@ -71,8 +71,7 @@ export function enter(ctx: SceneContext, data?: unknown): void {
       if (inputBuffer.toLowerCase() === "resume") {
         ctx.navigate("game", state);
       } else if (inputBuffer.toLowerCase() === "quit") {
-        ctx.cleanup();
-        process.exit(0);
+        ctx.exit();
       }
     }
   };

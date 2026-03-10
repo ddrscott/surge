@@ -1,20 +1,21 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { PowerUpEffect } from "../types.js";
 
-// Load bug dictionary from plain text file (one word per line, # comments)
-const bugsPath = join(process.cwd(), "bugs.txt");
-const ALL_WORDS: string[] = readFileSync(bugsPath, "utf-8")
-  .split("\n")
-  .map((line) => line.trim())
-  .filter((line) => line && !line.startsWith("#"));
-
-// Bucket words by length for wave difficulty matching
+let ALL_WORDS: string[] = [];
 const buckets = new Map<number, string[]>();
-for (const word of ALL_WORDS) {
-  const len = word.length;
-  if (!buckets.has(len)) buckets.set(len, []);
-  buckets.get(len)!.push(word);
+
+/** Initialize word dictionary from raw text (one word per line, # comments) */
+export function initWords(rawText: string): void {
+  ALL_WORDS = rawText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+
+  buckets.clear();
+  for (const word of ALL_WORDS) {
+    const len = word.length;
+    if (!buckets.has(len)) buckets.set(len, []);
+    buckets.get(len)!.push(word);
+  }
 }
 
 export interface PowerUpWord {

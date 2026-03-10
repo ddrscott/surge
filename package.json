@@ -1,12 +1,15 @@
 {
   "name": "surge",
   "version": "1.0.0",
-  "description": "",
+  "description": "Cyberpunk terminal typing game. Bugs are crawling through memory. Name them to squash them.",
   "main": "index.js",
   "scripts": {
     "start": "node dist/main.js",
     "dev": "tsx src/main.ts",
     "build": "tsx scripts/validate-bugs.ts && tsx scripts/validate-facts.ts && tsc",
+    "dev:web": "vite --config web/vite.config.ts",
+    "build:web": "vite build --config web/vite.config.ts",
+    "deploy": "npm run build:web && npx wrangler pages deploy web/dist --project-name=surge",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -15,7 +18,10 @@
   "type": "module",
   "devDependencies": {
     "@types/node": "^25.4.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
   }
 }

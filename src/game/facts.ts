@@ -1,12 +1,12 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+let ALL_FACTS: string[] = [];
 
-// Load facts from plain text file (one fact per line, # comments, blank lines ignored)
-const factsPath = join(process.cwd(), "facts.txt");
-const ALL_FACTS: string[] = readFileSync(factsPath, "utf-8")
-  .split("\n")
-  .map((line) => line.trim())
-  .filter((line) => line && !line.startsWith("#"));
+/** Initialize facts from raw text (one fact per line, # comments) */
+export function initFacts(rawText: string): void {
+  ALL_FACTS = rawText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+}
 
 /** Return a random fun fact */
 export function getRandomFact(): string {

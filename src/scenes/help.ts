@@ -52,8 +52,7 @@ export function enter(ctx: SceneContext): void {
 
   handler = (key: string) => {
     if (key === "\x03") {
-      ctx.cleanup();
-      process.exit(0);
+      ctx.exit();
     }
     ctx.navigate("title");
   };

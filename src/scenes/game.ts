@@ -545,7 +545,7 @@ function renderDeathOverlay(frame: string, animTick: number, state: GameState): 
 export function enter(ctx: SceneContext, data?: unknown): void {
   const state = (data as GameState) ?? createGame();
   deathAnimStart = null;
-  process.stdout.write("\x1b[?25l"); // hide cursor
+  ctx.writeFrame("\x1b[?25l"); // hide cursor
 
   tickInterval = setInterval(() => {
     gameTick(state);
@@ -603,5 +603,5 @@ export function exit(ctx: SceneContext): void {
     ctx.stdin.removeListener("data", handler);
     handler = null;
   }
-  process.stdout.write("\x1b[?25h"); // show cursor
+  ctx.writeFrame("\x1b[?25h"); // show cursor
 }

@@ -67,8 +67,7 @@ export function enter(ctx: SceneContext): void {
 
   handler = (key: string) => {
     if (key === "\x03") {
-      ctx.cleanup();
-      process.exit(0);
+      ctx.exit();
     }
 
     if (key === "\x7f" || key === "\b") {
@@ -92,8 +91,7 @@ export function enter(ctx: SceneContext): void {
       } else if (titleBuffer.toLowerCase() === "help") {
         ctx.navigate("help");
       } else if (titleBuffer.toLowerCase() === "quit") {
-        ctx.cleanup();
-        process.exit(0);
+        ctx.exit();
       }
     }
   };

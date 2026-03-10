@@ -12,10 +12,19 @@ export interface Layout {
   barWidth: number;
 }
 
+let _cols = 80;
+let _rows = 24;
+
+/** Set terminal dimensions (call on init and resize) */
+export function setTermSize(cols: number, rows: number): void {
+  _cols = cols;
+  _rows = rows;
+}
+
 /** Compute layout from current terminal size */
 export function layout(): Layout {
-  const cols = Math.max(30, process.stdout.columns || 80);
-  const rows = Math.max(8, process.stdout.rows || 24);
+  const cols = Math.max(30, _cols);
+  const rows = Math.max(8, _rows);
   const compact = cols < 60 || rows < 18;
   const width = cols - 2;
   const wallMax = compact ? 2 : 4;
