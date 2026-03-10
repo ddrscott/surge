@@ -328,8 +328,35 @@ function render(state: GameState): string {
   const target = findTarget(state);
   const inputLen = state.inputBuffer.length;
 
+  // Detect inter-wave calm period (enemies cleared, waiting for next spawn)
+  const isCalm = state.enemies.length === 0 && state.tick < state.nextSpawnTick && state.tick > 0;
+
+  // Build wave toast lines to overlay on the middle of the lane area
+  let toastLines: string[] | null = null;
+  let toastStartLane = 0;
+  if (isCalm) {
+    const waveLabel = `WAVE ${state.wave + 1}`;
+    const deco = "── ";
+    const decoEnd = " ──";
+    const toastText = `${c.bold}${c.cyan}${deco}${c.white}${waveLabel}${c.cyan}${decoEnd}${c.reset}`;
+    const toastVisualLen = deco.length + waveLabel.length + decoEnd.length;
+    const pad = Math.max(0, Math.floor((fieldWidth - toastVisualLen) / 2));
+    toastLines = [
+      " ".repeat(fieldWidth),
+      " ".repeat(pad) + toastText,
+      " ".repeat(fieldWidth),
+    ];
+    toastStartLane = Math.max(0, Math.floor((lanes - toastLines.length) / 2));
+  }
+
   // Render lanes
   for (let lane = 0; lane < lanes; lane++) {
+    // Overlay toast if in calm period
+    if (toastLines && lane >= toastStartLane && lane < toastStartLane + toastLines.length) {
+      lines.push(toastLines[lane - toastStartLane]!);
+      continue;
+    }
+
     const alive = liveLaneMap.get(lane);
     if (alive) {
       const zone = getZone(alive.position);
