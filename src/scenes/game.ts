@@ -294,10 +294,11 @@ function render(state: GameState): string {
   if (hpRatio > 0.6) wallColor = c.dim;
   else if (hpRatio > 0.3) wallColor = c.yellow;
   else wallColor = c.red;
+  const wallVisual = Math.max(1, wallWidth); // `|` marker is 1 char when wall is gone
   const wallStr = wallWidth > 0
     ? `${wallColor}${"█".repeat(wallWidth)}${c.reset}`
     : `${c.red}${c.bold}|${c.reset}`;
-  const wallPad = " ".repeat(Math.max(0, wallMax - wallWidth));
+  const wallPad = " ".repeat(Math.max(0, wallMax - wallVisual));
 
   // Status line (standard only)
   if (!compact) {
