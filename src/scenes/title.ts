@@ -9,7 +9,7 @@ function center(text: string, w: number): string {
   return " ".repeat(pad) + text;
 }
 
-function renderScreen(titleBuffer: string): string {
+function renderScreen(titleBuffer: string, authEmail: string | null = null, hasAuth = false): string {
   const { compact, width } = layout();
   const inner = width; // inner width between ║ borders
   const input = titleBuffer.toLowerCase();
@@ -81,6 +81,13 @@ function renderScreen(titleBuffer: string): string {
   lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord}  ${c.dim}to walk away${c.reset}`));
   lines.push(bLine(""));
 
+  // Auth status line (web only)
+  if (authEmail) {
+    lines.push(bLine(`${c.dim}  logged in as ${c.reset}${c.green}${authEmail}${c.reset}`));
+  } else if (hasAuth) {
+    lines.push(bLine(`${c.dim}  sign in at ${c.reset}${c.cyan}auth.ljs.app${c.reset}${c.dim} for leaderboards${c.reset}`));
+  }
+
   padToRows(lines);
   lines.push(menuPromptBorder(titleBuffer));
 
@@ -89,7 +96,10 @@ function renderScreen(titleBuffer: string): string {
 
 export function enter(ctx: SceneContext): void {
   let titleBuffer = "";
-  ctx.writeFrame(renderScreen(titleBuffer));
+  const authEmail = ctx.authUser?.email ?? null;
+  const hasAuth = ctx.loginUrl !== null;
+
+  ctx.writeFrame(renderScreen(titleBuffer, authEmail, hasAuth));
 
   handler = (key: string) => {
     if (key === "\x03") {
@@ -98,20 +108,20 @@ export function enter(ctx: SceneContext): void {
 
     if (key === "\x7f" || key === "\b") {
       titleBuffer = titleBuffer.slice(0, -1);
-      ctx.writeFrame(renderScreen(titleBuffer));
+      ctx.writeFrame(renderScreen(titleBuffer, authEmail, hasAuth));
       return;
     }
 
     if (key === "\x1b") {
       titleBuffer = "";
-      ctx.writeFrame(renderScreen(titleBuffer));
+      ctx.writeFrame(renderScreen(titleBuffer, authEmail, hasAuth));
       return;
     }
 
     if (key.length === 1 && key >= " " && key <= "~") {
       if (!matchesAnyOption(titleBuffer, key, ["surge", "help", "quit"])) return;
       titleBuffer += key;
-      ctx.writeFrame(renderScreen(titleBuffer));
+      ctx.writeFrame(renderScreen(titleBuffer, authEmail, hasAuth));
 
       if (titleBuffer.toLowerCase() === "surge") {
         ctx.navigate("game");

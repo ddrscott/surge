@@ -188,9 +188,41 @@ The endgame vision: multiplayer Surge over SSH, styled as a BBS door game. Playe
 
 This preserves the single-player core while adding competitive pressure through shared resources and direct interference. The terminal-native approach means it works over any SSH connection - no browser, no client install, just `ssh surge.example.com`.
 
+## Authentication
+
+Surge integrates with [auth.ljs.app](https://auth.ljs.app) for email-based authentication via magic links. Auth is **optional** - anyone can play without signing in. Authentication is only required for future leaderboard score submission.
+
+### How It Works
+
+1. Player visits `surge.ljs.app` - game loads, web client checks `/api/auth/me`
+2. If logged in, title screen shows email; game over screen shows leaderboard status
+3. If not logged in, screens show a hint to sign in at `auth.ljs.app`
+4. Login redirects through `auth.ljs.app/login` → magic link email → callback with signed token
+5. Worker validates HMAC-SHA256 token using shared `JWT_SECRET`, sets httpOnly session cookie
+
+### Worker Auth Routes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/auth/login` | Redirect to auth.ljs.app with returnTo |
+| `GET` | `/api/auth/callback` | Receive token, set session cookie, redirect |
+| `GET` | `/api/auth/me` | Return current user info from session cookie |
+| `POST` | `/api/auth/logout` | Clear session cookie |
+
+### Setup
+
+```sh
+# Set the shared JWT secret (must match auth.ljs.app)
+wrangler secret put JWT_SECRET
+
+# For local dev, add to .dev.vars:
+# JWT_SECRET=your-shared-jwt-secret
+# DEV_ORIGIN=http://localhost:8788
+```
+
 ## Deployment
 
-Surge runs as a Cloudflare Worker with static assets. The Worker serves the Vite-built web app and provides API routes for future features.
+Surge runs as a Cloudflare Worker with static assets. The Worker serves the Vite-built web app and provides API routes for auth and future features.
 
 ```sh
 # First time: create the Worker
@@ -198,6 +230,9 @@ npx wrangler deploy
 
 # Set up custom domain (surge.ljs.app)
 # In CF dashboard: Workers & Pages > surge > Settings > Domains & Routes
+
+# Set auth secret
+wrangler secret put JWT_SECRET
 
 # Future: create D1 database for leaderboards
 npx wrangler d1 create surge-db

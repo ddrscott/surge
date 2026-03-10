@@ -100,7 +100,16 @@ function exit() {
   process.exit(0);
 }
 
-const ctx: SceneContext = { writeFrame, stdin: process.stdin, navigate, cleanup, exit };
+const ctx: SceneContext = {
+  writeFrame,
+  stdin: process.stdin,
+  navigate,
+  cleanup,
+  exit,
+  authUser: null,
+  loginUrl: null,
+  logout: () => {},
+};
 
 // Setup terminal
 process.stdout.write("\x1b[?1049h"); // enter alternate screen buffer

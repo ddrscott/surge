@@ -25,6 +25,7 @@ npm start            # run compiled Node.js version
 - `src/scenes/help.ts` - Briefing/how-to-play screen
 - `src/scenes/pause.ts` - Pause menu (resume/quit)
 - `src/scenes/gameover.ts` - Game over stats + fun fact
+- `src/scenes/types.ts` - SceneContext, InputEmitter, AuthUser interfaces
 - `bugs.txt` - Word dictionary (340 words, validated at build time)
 - `facts.txt` - Fun facts (85 entries, validated at build time)
 
@@ -123,10 +124,22 @@ Edit `bugs.txt` (one word per line, `#` comments allowed). Run `npm run build` t
 
 Edit `facts.txt` (one fact per line). Validated at build time for duplicates and length.
 
+## Authentication (auth.ljs.app)
+
+- Auth is **optional** — only needed for future leaderboard submission
+- Uses shared `JWT_SECRET` with `auth.ljs.app` for HMAC-SHA256 token verification
+- Worker routes: `/api/auth/login`, `/api/auth/callback`, `/api/auth/me`, `/api/auth/logout`
+- Web client fetches `/api/auth/me` on startup, passes `AuthUser` through `SceneContext`
+- Title screen and game over screen show auth status when `ctx.authUser` is set
+- CLI mode: `authUser` is always `null`, `loginUrl` is `null`, `logout` is no-op
+- Session cookie: `httpOnly`, `secure` (except localhost), `sameSite: Lax`, 30-day expiry
+- Set secret: `wrangler secret put JWT_SECRET` (must match auth.ljs.app)
+- Local dev: add `JWT_SECRET` and optionally `DEV_ORIGIN` to `.dev.vars`
+
 ## Deployment (Cloudflare Workers)
 
 - `wrangler.toml` - Worker config with static assets binding
-- `worker/index.ts` - Worker entry point (serves assets + API routes)
+- `worker/index.ts` - Worker entry point (serves assets + auth + API routes)
 - `worker/tsconfig.json` - Worker-specific TS config (uses `@cloudflare/workers-types`)
 - Static assets served from `web/dist/` via `ASSETS` binding
 - D1 database binding commented out, ready to uncomment when needed

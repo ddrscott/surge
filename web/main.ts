@@ -5,7 +5,7 @@ import "@xterm/xterm/css/xterm.css";
 import { setTermSize } from "../src/render.js";
 import { initWords } from "../src/game/words.js";
 import { initFacts } from "../src/game/facts.js";
-import type { SceneContext, InputEmitter } from "../src/scenes/types.js";
+import type { SceneContext, InputEmitter, AuthUser } from "../src/scenes/types.js";
 
 import * as titleScene from "../src/scenes/title.js";
 import * as helpScene from "../src/scenes/help.js";
@@ -21,6 +21,38 @@ import factsRaw from "../facts.txt?raw";
 // --- Initialize data ---
 initWords(bugsRaw);
 initFacts(factsRaw);
+
+// --- Auth state ---
+let authUser: AuthUser | null = null;
+
+async function fetchAuthState(): Promise<void> {
+  try {
+    const res = await fetch("/api/auth/me");
+    const data: { authenticated: boolean; email?: string; userId?: string } = await res.json();
+    if (data.authenticated && data.email && data.userId) {
+      authUser = { email: data.email, userId: data.userId };
+    }
+  } catch {
+    // Auth check failed silently — user is unauthenticated
+  }
+}
+
+function getLoginUrl(): string {
+  return `/api/auth/login?returnTo=${encodeURIComponent(window.location.href)}`;
+}
+
+async function doLogout(): Promise<void> {
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
+    authUser = null;
+    // Re-render title screen after logout
+    if (currentSceneName === "title") {
+      navigate("title");
+    }
+  } catch {
+    // Logout failed silently
+  }
+}
 
 // --- Terminal size tiers ---
 // Fixed cols x rows, pick the largest that fits the viewport.
@@ -214,13 +246,25 @@ function exit(): void {
   navigate("title");
 }
 
-const ctx: SceneContext = { writeFrame, stdin: inputEmitter, navigate, cleanup, exit };
+const ctx: SceneContext = {
+  writeFrame,
+  stdin: inputEmitter,
+  navigate,
+  cleanup,
+  exit,
+  get authUser() { return authUser; },
+  get loginUrl() { return getLoginUrl(); },
+  logout: () => { void doLogout(); },
+};
 
-// --- Start ---
-navigate("title");
+// --- Start (fetch auth state, then show title) ---
+async function start(): Promise<void> {
+  await fetchAuthState();
+  navigate("title");
+  term.focus();
+}
 
-// Focus terminal
-term.focus();
+void start();
 
 // Re-focus on any interaction
 document.addEventListener("click", () => term.focus());

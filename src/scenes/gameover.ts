@@ -30,7 +30,7 @@ function wrapFact(text: string, maxWidth: number, maxLines: number): string[] {
   return result;
 }
 
-function renderScreen(state: GameState, inputBuffer: string, fact: string): string {
+function renderScreen(state: GameState, inputBuffer: string, fact: string, authEmail: string | null = null, hasAuth = false): string {
   const { compact, width } = layout();
   const inner = width;
   const lines: string[] = [];
@@ -82,6 +82,13 @@ function renderScreen(state: GameState, inputBuffer: string, fact: string): stri
   lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord} ${c.dim}to walk away${c.reset}`, rc));
   lines.push(bLine("", rc));
 
+  // Auth/leaderboard status (web only)
+  if (authEmail) {
+    lines.push(bLine(`${c.dim}  leaderboard coming soon · ${c.reset}${c.green}${authEmail}${c.reset}`, rc));
+  } else if (hasAuth) {
+    lines.push(bLine(`${c.dim}  sign in to submit scores → ${c.reset}${c.cyan}auth.ljs.app${c.reset}`, rc));
+  }
+
   padToRows(lines, rc);
   lines.push(menuPromptBorder(inputBuffer, rc));
 
@@ -92,8 +99,10 @@ export function enter(ctx: SceneContext, data?: unknown): void {
   const state = data as GameState;
   const fact = getRandomFact();
   let inputBuffer = "";
+  const authEmail = ctx.authUser?.email ?? null;
+  const hasAuth = ctx.loginUrl !== null;
 
-  ctx.writeFrame(renderScreen(state, inputBuffer, fact));
+  ctx.writeFrame(renderScreen(state, inputBuffer, fact, authEmail, hasAuth));
 
   handler = (key: string) => {
     if (key === "\x03") {
@@ -102,20 +111,20 @@ export function enter(ctx: SceneContext, data?: unknown): void {
 
     if (key === "\x7f" || key === "\b") {
       inputBuffer = inputBuffer.slice(0, -1);
-      ctx.writeFrame(renderScreen(state, inputBuffer, fact));
+      ctx.writeFrame(renderScreen(state, inputBuffer, fact, authEmail, hasAuth));
       return;
     }
 
     if (key === "\x1b") {
       inputBuffer = "";
-      ctx.writeFrame(renderScreen(state, inputBuffer, fact));
+      ctx.writeFrame(renderScreen(state, inputBuffer, fact, authEmail, hasAuth));
       return;
     }
 
     if (key.length === 1 && key >= " " && key <= "~") {
       if (!matchesAnyOption(inputBuffer, key, ["jack", "quit"])) return;
       inputBuffer += key;
-      ctx.writeFrame(renderScreen(state, inputBuffer, fact));
+      ctx.writeFrame(renderScreen(state, inputBuffer, fact, authEmail, hasAuth));
 
       if (inputBuffer.toLowerCase() === "jack") {
         ctx.navigate("game");
