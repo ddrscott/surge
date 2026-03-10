@@ -3,7 +3,7 @@ main = "./worker/index.ts"
 compatibility_date = "2025-06-01"
 
 [[routes]]
-pattern = "surge.dataturd.com"
+pattern = "surge.ljs.app"
 custom_domain = true
 
 [assets]

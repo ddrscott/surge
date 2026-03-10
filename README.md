@@ -4,16 +4,16 @@ A cyberpunk terminal typing game. Bugs are crawling through memory. Name them to
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
-║  integrity ████████████  surge ░░░░░░░░░░░░                     ║
-║  wave 3                                                         ║
-╠═════════════════════════════════════════════════════════════════╣
-║ hornet        ··a4··0b··f2··e8··3d··c7··1a··95··b3·            █║
+║  integrity ████████████  surge ░░░░░░░░░░░░                      ║
+║  wave 3                                                          ║
+╠══════════════════════════════════════════════════════════════════╣
+║ hornet        ··a4··0b··f2··e8··3d··c7··1a··95··b3·             █║
 ║ mantis                  ··7e··d1··a6··4f··c3··82··              █║
 ║·                                                               ██║
 ║ cricket                                                        ██║
 ║·                                                               ██║
-╟─────────────────────────────────────────────────────────────────╢
-╚[ $ rm ho█ ]═══════════════════════════════════════[1,250][1.5x]╝
+╟──────────────────────────────────────────────────────────────────╢
+╚[ $ rm ho█ ]═════════════════════════════════════════[1,250][1.5x]╝
 ```
 
 ## Install & Run
@@ -28,7 +28,7 @@ npm run deploy      # build + deploy to Cloudflare Workers
 ```
 
 **Terminal version** requires Node.js 18+ and an interactive terminal (min 30x10).
-**Browser version** runs at [surge.dataturd.com](https://surge.dataturd.com) or locally on `localhost:5173`.
+**Browser version** runs at [surge.ljs.app](https://surge.ljs.app) or locally on `localhost:5173`.
 
 ## How to Play
 
@@ -196,7 +196,7 @@ Surge runs as a Cloudflare Worker with static assets. The Worker serves the Vite
 # First time: create the Worker
 npx wrangler deploy
 
-# Set up custom domain (surge.dataturd.com)
+# Set up custom domain (surge.ljs.app)
 # In CF dashboard: Workers & Pages > surge > Settings > Domains & Routes
 
 # Future: create D1 database for leaderboards
