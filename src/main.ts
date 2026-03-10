@@ -5,6 +5,7 @@ import * as helpScene from "./scenes/help.js";
 import * as gameScene from "./scenes/game.js";
 import * as gameoverScene from "./scenes/gameover.js";
 import * as pauseScene from "./scenes/pause.js";
+import * as leaderboardScene from "./scenes/leaderboard.js";
 import type { SceneContext } from "./scenes/types.js";
 import { setTermSize } from "./render.js";
 import { initWords } from "./game/words.js";
@@ -81,6 +82,7 @@ const scenes = {
   game: gameScene,
   gameover: gameoverScene,
   pause: pauseScene,
+  leaderboard: leaderboardScene,
 } as const;
 
 type SceneName = keyof typeof scenes;

@@ -12,6 +12,7 @@ import * as helpScene from "../src/scenes/help.js";
 import * as gameScene from "../src/scenes/game.js";
 import * as gameoverScene from "../src/scenes/gameover.js";
 import * as pauseScene from "../src/scenes/pause.js";
+import * as leaderboardScene from "../src/scenes/leaderboard.js";
 
 // @ts-ignore - Vite raw import
 import bugsRaw from "../bugs.txt?raw";
@@ -216,6 +217,7 @@ const scenes = {
   game: gameScene,
   gameover: gameoverScene,
   pause: pauseScene,
+  leaderboard: leaderboardScene,
 } as const;
 
 type SceneName = keyof typeof scenes;

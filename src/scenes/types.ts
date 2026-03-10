@@ -11,7 +11,7 @@ export interface AuthUser {
 export interface SceneContext {
   writeFrame: (data: string) => void;
   stdin: InputEmitter;
-  navigate: (scene: "title" | "help" | "game" | "gameover" | "pause", data?: unknown) => void;
+  navigate: (scene: "title" | "help" | "game" | "gameover" | "pause" | "leaderboard", data?: unknown) => void;
   cleanup: () => void;
   exit: () => void;
   /** Authenticated user info (web only, null when not logged in or in CLI) */

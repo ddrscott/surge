@@ -30,7 +30,9 @@ function wrapFact(text: string, maxWidth: number, maxLines: number): string[] {
   return result;
 }
 
-function renderScreen(state: GameState, inputBuffer: string, fact: string, authEmail: string | null = null, hasAuth = false): string {
+type SubmitStatus = "idle" | "submitting" | "submitted" | "failed";
+
+function renderScreen(state: GameState, inputBuffer: string, fact: string, authEmail: string | null = null, hasAuth = false, submitStatus: SubmitStatus = "idle"): string {
   const { compact, width } = layout();
   const inner = width;
   const lines: string[] = [];
@@ -40,6 +42,10 @@ function renderScreen(state: GameState, inputBuffer: string, fact: string, authE
   const jackWord = renderTitleWord(
     "jack".startsWith(input) ? inputBuffer : "",
     "jack"
+  );
+  const boardWord = renderTitleWord(
+    "board".startsWith(input) ? inputBuffer : "",
+    "board"
   );
   const quitWord = renderTitleWord(
     "quit".startsWith(input) ? inputBuffer : "",
@@ -78,15 +84,22 @@ function renderScreen(state: GameState, inputBuffer: string, fact: string, authE
   lines.push(bLine("", rc));
   if (!compact) lines.push(bLine(dbar, rc));
   if (!compact) lines.push(bLine("", rc));
-  lines.push(bLine(`  ${c.dim}type${c.reset} ${jackWord} ${c.dim}to jack back in${c.reset}`, rc));
-  lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord} ${c.dim}to walk away${c.reset}`, rc));
+  lines.push(bLine(`  ${c.dim}type${c.reset} ${jackWord}  ${c.dim}to jack back in${c.reset}`, rc));
+  lines.push(bLine(`  ${c.dim}type${c.reset} ${boardWord} ${c.dim}for leaderboard${c.reset}`, rc));
+  lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord}  ${c.dim}to walk away${c.reset}`, rc));
   lines.push(bLine("", rc));
 
   // Auth/leaderboard status (web only)
-  if (authEmail) {
-    lines.push(bLine(`${c.dim}  leaderboard coming soon · ${c.reset}${c.green}${authEmail}${c.reset}`, rc));
+  if (authEmail && submitStatus === "submitted") {
+    lines.push(bLine(`${c.green}  score submitted!${c.reset} ${c.dim}· ${c.reset}${c.green}${authEmail}${c.reset}`, rc));
+  } else if (authEmail && submitStatus === "submitting") {
+    lines.push(bLine(`${c.dim}  submitting score... · ${c.reset}${c.green}${authEmail}${c.reset}`, rc));
+  } else if (authEmail && submitStatus === "failed") {
+    lines.push(bLine(`${c.red}  submit failed${c.reset} ${c.dim}· ${c.reset}${c.green}${authEmail}${c.reset}`, rc));
+  } else if (authEmail) {
+    lines.push(bLine(`${c.dim}  logged in as ${c.reset}${c.green}${authEmail}${c.reset}`, rc));
   } else if (hasAuth) {
-    lines.push(bLine(`${c.dim}  sign in to submit scores → ${c.reset}${c.cyan}auth.ljs.app${c.reset}`, rc));
+    lines.push(bLine(`${c.dim}  sign in at ${c.reset}${c.cyan}auth.ljs.app${c.reset}${c.dim} to submit scores${c.reset}`, rc));
   }
 
   padToRows(lines, rc);
@@ -95,14 +108,45 @@ function renderScreen(state: GameState, inputBuffer: string, fact: string, authE
   return "\x1b[H" + lines.join("\n") + "\x1b[J" + cursorToPrompt(inputBuffer);
 }
 
+async function submitScore(state: GameState, email: string): Promise<boolean> {
+  try {
+    const res = await fetch("/api/scores", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        score: state.score,
+        wave: state.wave,
+        kills: state.kills,
+        checksum: state.killChecksum,
+        displayName: email.split("@")[0] ?? email,
+      }),
+    });
+    return res.ok || res.status === 201;
+  } catch {
+    return false;
+  }
+}
+
 export function enter(ctx: SceneContext, data?: unknown): void {
   const state = data as GameState;
   const fact = getRandomFact();
   let inputBuffer = "";
   const authEmail = ctx.authUser?.email ?? null;
   const hasAuth = ctx.loginUrl !== null;
+  let submitStatus: SubmitStatus = "idle";
 
-  ctx.writeFrame(renderScreen(state, inputBuffer, fact, authEmail, hasAuth));
+  const render = () => ctx.writeFrame(renderScreen(state, inputBuffer, fact, authEmail, hasAuth, submitStatus));
+  render();
+
+  // Auto-submit score if authenticated and score > 0
+  if (authEmail && state.score > 0 && hasAuth) {
+    submitStatus = "submitting";
+    render();
+    void submitScore(state, authEmail).then((ok) => {
+      submitStatus = ok ? "submitted" : "failed";
+      render();
+    });
+  }
 
   handler = (key: string) => {
     if (key === "\x03") {
@@ -111,23 +155,25 @@ export function enter(ctx: SceneContext, data?: unknown): void {
 
     if (key === "\x7f" || key === "\b") {
       inputBuffer = inputBuffer.slice(0, -1);
-      ctx.writeFrame(renderScreen(state, inputBuffer, fact, authEmail, hasAuth));
+      render();
       return;
     }
 
     if (key === "\x1b") {
       inputBuffer = "";
-      ctx.writeFrame(renderScreen(state, inputBuffer, fact, authEmail, hasAuth));
+      render();
       return;
     }
 
     if (key.length === 1 && key >= " " && key <= "~") {
-      if (!matchesAnyOption(inputBuffer, key, ["jack", "quit"])) return;
+      if (!matchesAnyOption(inputBuffer, key, ["jack", "board", "quit"])) return;
       inputBuffer += key;
-      ctx.writeFrame(renderScreen(state, inputBuffer, fact, authEmail, hasAuth));
+      render();
 
       if (inputBuffer.toLowerCase() === "jack") {
         ctx.navigate("game");
+      } else if (inputBuffer.toLowerCase() === "board") {
+        ctx.navigate("leaderboard", { from: "gameover", lastScore: state.score, submitted: submitStatus === "submitted" });
       } else if (inputBuffer.toLowerCase() === "quit") {
         ctx.exit();
       }

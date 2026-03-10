@@ -21,6 +21,10 @@ function renderScreen(titleBuffer: string, authEmail: string | null = null, hasA
     "help".startsWith(input) ? titleBuffer : "",
     "help"
   );
+  const boardWord = renderTitleWord(
+    "board".startsWith(input) ? titleBuffer : "",
+    "board"
+  );
   const quitWord = renderTitleWord(
     "quit".startsWith(input) ? titleBuffer : "",
     "quit"
@@ -78,6 +82,7 @@ function renderScreen(titleBuffer: string, authEmail: string | null = null, hasA
   if (!compact) lines.push(bLine(""));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${surgeWord} ${c.dim}to jack in${c.reset}`));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${helpWord}  ${c.dim}for briefing${c.reset}`));
+  lines.push(bLine(`  ${c.dim}type${c.reset} ${boardWord} ${c.dim}for leaderboard${c.reset}`));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord}  ${c.dim}to walk away${c.reset}`));
   lines.push(bLine(""));
 
@@ -119,7 +124,7 @@ export function enter(ctx: SceneContext): void {
     }
 
     if (key.length === 1 && key >= " " && key <= "~") {
-      if (!matchesAnyOption(titleBuffer, key, ["surge", "help", "quit"])) return;
+      if (!matchesAnyOption(titleBuffer, key, ["surge", "help", "board", "quit"])) return;
       titleBuffer += key;
       ctx.writeFrame(renderScreen(titleBuffer, authEmail, hasAuth));
 
@@ -127,6 +132,8 @@ export function enter(ctx: SceneContext): void {
         ctx.navigate("game");
       } else if (titleBuffer.toLowerCase() === "help") {
         ctx.navigate("help");
+      } else if (titleBuffer.toLowerCase() === "board") {
+        ctx.navigate("leaderboard", { from: "title" });
       } else if (titleBuffer.toLowerCase() === "quit") {
         ctx.exit();
       }
