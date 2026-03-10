@@ -17,13 +17,15 @@ const SCROLL_IN = 0.05; // brief dim fade-in
 const HEX = "0123456789abcdef";
 const WIRE_MARGIN = 2; // breathing room between wire edge and wall/word
 
-/** Generate a matrix hex char for a wire position */
-function wireChar(tick: number, col: number, reversed: boolean): string {
+/** Generate a matrix hex char for a wire position.
+ *  `seed` varies the pattern per-wire so each lane looks distinct. */
+function wireChar(tick: number, col: number, reversed: boolean, seed: number): string {
   const flow = reversed ? -tick : tick;
-  const phase = ((flow + col * 7) % 5 + 5) % 5;
+  const h = flow * 3 + col * 7 + seed * 13;
+  const phase = ((h + seed * 11) % 5 + 5) % 5;
   if (phase === 0) return " ";
   if (phase === 4) return "·";
-  const hexIdx = ((flow * 3 + col * 7) % 16 + 16) % 16;
+  const hexIdx = ((h) % 16 + 16) % 16;
   return HEX[hexIdx]!;
 }
 
@@ -111,7 +113,7 @@ function renderLaneContent(
       const overallProgress = wireLen / Math.max(1, maxWireLen);
       const brightness = proximity * 0.5 + overallProgress * 0.5;
       const bright = brightness > 0.6 ? c.bold : brightness > 0.3 ? "" : c.dim;
-      wire += `${wireColor}${bright}${wireChar(tick, wireStart + i, reversed)}${c.reset}`;
+      wire += `${wireColor}${bright}${wireChar(tick, wireStart + i, reversed, enemy.lane)}${c.reset}`;
     }
 
     const leftPad = " ".repeat(anchorCol);
@@ -126,7 +128,7 @@ function renderLaneContent(
     const wireStart = wireAreaStart; // full wire, gap = 0
     let wire = "";
     for (let i = 0; i < maxWireLen; i++) {
-      wire += `${c.red}${c.bold}${wireChar(tick, wireStart + i, false)}${c.reset}`;
+      wire += `${c.red}${c.bold}${wireChar(tick, wireStart + i, false, enemy.lane)}${c.reset}`;
     }
     const leftPad = " ".repeat(anchorCol);
     const wordStr = `${c.red}${c.bold}${enemy.word}${c.reset}`;
@@ -142,7 +144,7 @@ function renderLaneContent(
   for (let i = 0; i < maxWireLen; i++) {
     const col = wireAreaStart + i;
     if (col < fieldWidth) {
-      buf[col] = wireChar(tick, col, false);
+      buf[col] = wireChar(tick, col, false, enemy.lane);
     }
   }
 
@@ -427,7 +429,7 @@ function render(state: GameState): string {
         for (let col = 0; col < laneCols; col++) {
           const brightness = col / Math.max(1, laneCols - 1);
           const bright = brightness > 0.7 ? c.bold : brightness > 0.3 ? "" : c.dim;
-          wire += `${c.red}${bright}${wireChar(state.tick, col + i * 7, false)}${c.reset}`;
+          wire += `${c.red}${bright}${wireChar(state.tick, col + i * 7, false, i)}${c.reset}`;
         }
         const startCol = rightCol - laneCols;
         lines[lineIdx] = lines[lineIdx]! + `\x1b[${startCol}G${wire}`;
@@ -479,7 +481,7 @@ function renderDeathOverlay(frame: string, animTick: number, state: GameState): 
     for (let col = 0; col < laneCols; col++) {
       const brightness = col / Math.max(1, laneCols - 1);
       const bright = brightness > 0.7 ? c.bold : brightness > 0.3 ? "" : c.dim;
-      wire += `${c.red}${bright}${wireChar(animTick, col + i * 7, false)}${c.reset}`;
+      wire += `${c.red}${bright}${wireChar(animTick, col + i * 7, false, i)}${c.reset}`;
     }
 
     const startCol = rightCol - laneCols + 1;
@@ -499,7 +501,7 @@ function renderDeathOverlay(frame: string, animTick: number, state: GameState): 
         let wire = "";
         for (let col = 0; col < overflowCols; col++) {
           const bright = col > overflowCols * 0.7 ? c.bold : col > overflowCols * 0.3 ? "" : c.dim;
-          wire += `${c.red}${bright}${wireChar(animTick, col + i * 13, false)}${c.reset}`;
+          wire += `${c.red}${bright}${wireChar(animTick, col + i * 13, false, i + 100)}${c.reset}`;
         }
         const startCol = rightCol - overflowCols + 1;
         if (startCol > 0) {
@@ -523,7 +525,7 @@ function renderDeathOverlay(frame: string, animTick: number, state: GameState): 
         let divWire = "";
         for (let col = 0; col < bottomCols; col++) {
           const bright = col > bottomCols * 0.7 ? c.bold : col > bottomCols * 0.3 ? "" : c.dim;
-          divWire += `${c.red}${bright}${wireChar(animTick, col + 99, false)}${c.reset}`;
+          divWire += `${c.red}${bright}${wireChar(animTick, col + 99, false, 99)}${c.reset}`;
         }
         const divStart = safeCol - bottomCols;
         if (divStart > 0 && divIdx >= 0 && divIdx < lines.length) {
@@ -535,7 +537,7 @@ function renderDeathOverlay(frame: string, animTick: number, state: GameState): 
         let botWire = "";
         for (let col = 0; col < bottomCols; col++) {
           const bright = col > bottomCols * 0.7 ? c.bold : col > bottomCols * 0.3 ? "" : c.dim;
-          botWire += `${c.red}${bright}${wireChar(animTick, col + 77, false)}${c.reset}`;
+          botWire += `${c.red}${bright}${wireChar(animTick, col + 77, false, 77)}${c.reset}`;
         }
         const botStart = safeCol - bottomCols;
         if (botStart > 0 && botIdx >= 0) {
