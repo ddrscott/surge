@@ -22,12 +22,61 @@ import factsRaw from "../facts.txt?raw";
 initWords(bugsRaw);
 initFacts(factsRaw);
 
+// --- Terminal size tiers ---
+// Fixed cols x rows, pick the largest that fits the viewport.
+// Font size is computed to fill available space.
+const TIERS = [
+  { cols: 80, rows: 25 },
+  { cols: 70, rows: 22 },
+  { cols: 60, rows: 18 },
+  { cols: 50, rows: 16 },
+  { cols: 40, rows: 15 },
+] as const;
+
+interface TermSize {
+  cols: number;
+  rows: number;
+  fontSize: number;
+}
+
+function pickTier(): TermSize {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  // Character aspect ratio: height ≈ 2× width for monospace
+  const charRatio = 2.0;
+
+  for (const tier of TIERS) {
+    // Calculate font size that would fit this tier in the viewport
+    // Leave a small margin (8px each side)
+    const margin = 16;
+    const availW = vw - margin;
+    const availH = vh - margin;
+
+    const fontByWidth = availW / (tier.cols * 0.6); // char width ≈ 0.6 × fontSize
+    const fontByHeight = availH / (tier.rows * charRatio * 0.6);
+    const fontSize = Math.floor(Math.min(fontByWidth, fontByHeight));
+
+    if (fontSize >= 10) {
+      return { cols: tier.cols, rows: tier.rows, fontSize: Math.min(fontSize, 24) };
+    }
+  }
+
+  // Fallback: smallest tier with minimum font
+  const smallest = TIERS[TIERS.length - 1]!;
+  return { cols: smallest.cols, rows: smallest.rows, fontSize: 10 };
+}
+
 // --- Create terminal ---
+const initialSize = pickTier();
+
 const term = new Terminal({
   cursorBlink: false,
   cursorStyle: "block",
   fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Menlo', monospace",
-  fontSize: 16,
+  fontSize: initialSize.fontSize,
+  cols: initialSize.cols,
+  rows: initialSize.rows,
   theme: {
     background: "#0a0a0a",
     foreground: "#c0c0c0",
@@ -58,17 +107,29 @@ const term = new Terminal({
 const fitAddon = new FitAddon();
 term.loadAddon(fitAddon);
 term.open(document.getElementById("terminal")!);
-fitAddon.fit();
 
-// Set initial terminal size
-setTermSize(term.cols, term.rows);
+// Set terminal size
+setTermSize(initialSize.cols, initialSize.rows);
 
-// Handle resize
-const resizeObserver = new ResizeObserver(() => {
-  fitAddon.fit();
-  setTermSize(term.cols, term.rows);
-});
-resizeObserver.observe(document.getElementById("terminal")!);
+// Resize on viewport change (orientation change, window resize)
+let resizeTimer: number | null = null;
+function handleResize() {
+  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(() => {
+    const size = pickTier();
+    term.options.fontSize = size.fontSize;
+    term.resize(size.cols, size.rows);
+    setTermSize(size.cols, size.rows);
+
+    // Re-render current scene by navigating to it again
+    if (currentSceneName) {
+      navigate(currentSceneName, currentSceneData);
+    }
+  }, 150);
+}
+
+window.addEventListener("resize", handleResize);
+window.addEventListener("orientationchange", handleResize);
 
 // --- Input emitter (bridges xterm.js onData to scene system) ---
 type DataListener = (key: string) => void;
@@ -85,7 +146,6 @@ class WebInputEmitter implements InputEmitter {
   }
 
   emit(data: string): void {
-    // Fire a copy of the listener list (scene changes may modify it mid-iteration)
     const current = [...this.listeners];
     for (const listener of current) {
       listener(data);
@@ -95,7 +155,6 @@ class WebInputEmitter implements InputEmitter {
 
 const inputEmitter = new WebInputEmitter();
 
-// Wire xterm.js keyboard input to the emitter
 term.onData((data) => {
   inputEmitter.emit(data);
 });
@@ -111,6 +170,8 @@ const scenes = {
 
 type SceneName = keyof typeof scenes;
 let currentScene: { exit: (ctx: SceneContext) => void } | null = null;
+let currentSceneName: SceneName | null = null;
+let currentSceneData: unknown = undefined;
 
 function writeFrame(data: string): void {
   term.write(data);
@@ -118,6 +179,8 @@ function writeFrame(data: string): void {
 
 function navigate(scene: SceneName, data?: unknown): void {
   currentScene?.exit(ctx);
+  currentSceneName = scene;
+  currentSceneData = data;
   writeFrame("\x1b[2J\x1b[H");
   const target = scenes[scene];
   currentScene = target;
@@ -130,7 +193,6 @@ function cleanup(): void {
 
 function exit(): void {
   cleanup();
-  // In browser, navigate back to title instead of closing
   navigate("title");
 }
 
@@ -142,5 +204,6 @@ navigate("title");
 // Focus terminal
 term.focus();
 
-// Re-focus on click
+// Re-focus on any interaction
 document.addEventListener("click", () => term.focus());
+document.addEventListener("touchstart", () => term.focus());
