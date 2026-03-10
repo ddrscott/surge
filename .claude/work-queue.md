@@ -4,4 +4,4 @@
 - [x] Words appear letter-by-letter instead of sliding; points = speed × length — [detail](work-queue/typewriter-spawn.md)
 - [x] Embed input in bottom border: `══[ $letters ]══` centered, remove separate input/status lines
 - [x] Wall erodes rightward as HP drops — bugs travel further as barrier shrinks from the right
-- [ ] Rest the cursor block `█` in the bottom center of the frame
+- [x] Rest the cursor block `█` in the bottom center of the frame
