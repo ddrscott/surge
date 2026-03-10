@@ -64,7 +64,7 @@ function render(state: GameState): string {
     : `${c.blue}${bar(state.surgeMeter, state.surgeThreshold, 12)}${c.reset}`;
 
   lines.push(bLine(
-    `  ${c.dim}signal${c.reset} ${hpBar}  ${c.dim}surge${c.reset} ${surgeBar}`
+    `  ${c.dim}integrity${c.reset} ${hpBar}  ${c.dim}surge${c.reset} ${surgeBar}`
   ));
   lines.push(bLine(
     `  ${c.dim}wave${c.reset} ${c.bold}${state.wave + 1}${c.reset}    ${c.dim}x${c.reset}${c.bold}${state.combo}${c.reset}    ${c.bold}${state.score.toLocaleString()}${c.reset}`
@@ -84,7 +84,7 @@ function render(state: GameState): string {
   const wallCol = WIDTH - WALL_MAX + 2; // +1 for left border
 
   // Zone markers — manual border + wall
-  lines.push(`${c.cyan}║${c.reset}  ${c.dim}·${c.reset}         ${c.dim}far${c.reset}           ${c.dim}·${c.reset}     ${c.yellow}close${c.reset}    ${c.dim}·${c.reset}  ${c.red}${c.bold}KILL${c.reset}\x1b[K\x1b[${wallCol}G${wallStr}\x1b[${RIGHT_COL}G${c.cyan}║${c.reset}`);
+  lines.push(`${c.cyan}║${c.reset}  ${c.dim}·${c.reset}         ${c.dim}far${c.reset}           ${c.dim}·${c.reset}     ${c.yellow}close${c.reset}    ${c.dim}·${c.reset}  ${c.red}${c.bold}SQUASH${c.reset}\x1b[K\x1b[${wallCol}G${wallStr}\x1b[${RIGHT_COL}G${c.cyan}║${c.reset}`);
 
   // Build lane map — living enemies take priority, dead ones shown as ghosts
   const liveLaneMap = new Map<number, Enemy>();
@@ -144,9 +144,9 @@ function render(state: GameState): string {
 
   // Status line
   if (state.wave === 0 && state.tick < 20 && state.enemies.length === 0) {
-    lines.push(bLine(`${c.dim}  they're coming. name them to kill them.${c.reset}`));
+    lines.push(bLine(`${c.dim}  they're crawling in. name them to squash them.${c.reset}`));
   } else if (state.surgeReady) {
-    lines.push(bLine(`  ${c.magenta}${c.bold}the wire is yours. type "surge".${c.reset}`));
+    lines.push(bLine(`  ${c.magenta}${c.bold}fumigate. type "surge".${c.reset}`));
   } else {
     lines.push(bLine(""));
   }

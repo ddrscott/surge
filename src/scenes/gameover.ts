@@ -24,12 +24,12 @@ function renderScreen(state: GameState, inputBuffer: string): string {
   lines.push(bLine("", rc));
   lines.push(bLine("", rc));
   lines.push(bLine("", rc));
-  lines.push(bLine(`${c.dim}              signal lost.${c.reset}`, rc));
+  lines.push(bLine(`${c.dim}              stack overflow.${c.reset}`, rc));
   lines.push(bLine("", rc));
-  lines.push(bLine(`${c.dim}              the wire went dark${c.reset}`, rc));
+  lines.push(bLine(`${c.dim}              the system crashed${c.reset}`, rc));
   lines.push(bLine(`${c.dim}              on wave ${c.white}${state.wave + 1}${c.dim}.${c.reset}`, rc));
   lines.push(bLine("", rc));
-  lines.push(bLine(`${c.dim}              you took ${c.white}${c.bold}${state.score.toLocaleString()}${c.reset}${c.dim} of them with you.${c.reset}`, rc));
+  lines.push(bLine(`${c.dim}              you squashed ${c.white}${c.bold}${state.score.toLocaleString()}${c.reset}${c.dim} points worth.${c.reset}`, rc));
   lines.push(bLine(`${c.dim}              longest streak: ${c.white}${c.bold}${state.maxCombo}${c.reset}${c.dim} kills.${c.reset}`, rc));
   lines.push(bLine("", rc));
   lines.push(bLine("", rc));

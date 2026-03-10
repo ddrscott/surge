@@ -1,30 +1,41 @@
-// Word pools by difficulty tier
+// Bug/insect word pools by difficulty tier
+// Mix of common names and Latin binomials
+
 const TIER_1 = [
-  "fox", "run", "ice", "hex", "arc", "vim", "bug", "log", "api", "tcp",
-  "git", "ssh", "ram", "cpu", "dns", "sql", "pip", "npm", "zip", "tar",
-  "key", "bit", "hub", "dev", "ops", "red", "net", "sys", "cmd", "pkg",
+  "ant", "bee", "fly", "bug", "mite", "tick", "flea", "gnat",
+  "wasp", "moth", "slug", "worm", "lice", "grub", "nit",
 ];
 
 const TIER_2 = [
-  "crash", "pixel", "spawn", "flame", "ghost", "stack", "cache",
-  "queue", "async", "fetch", "merge", "parse", "yield", "chunk", "proxy",
-  "shell", "patch", "regex", "debug", "query", "bytes", "mutex", "panic",
-  "forge", "pulse", "blade", "nexus", "cyber", "shard",
+  "roach", "aphid", "larva", "louse", "drone", "nymph",
+  "hornet", "mantis", "earwig", "weevil", "thrips", "maggot",
+  "cicada", "sawfly", "botfly", "spider", "locust",
+  "beetle", "chigoe", "midge", "borer",
 ];
 
 const TIER_3 = [
-  "runtime", "exploit", "payload", "decrypt", "compile", "pointer",
-  "garbage", "deadlock", "callback", "process", "segment", "hashmap",
-  "reactor", "phantom", "cascade", "voltage", "trigger", "circuit",
-  "entropy", "quantum", "orbital", "paradox", "vortex", "vector",
-  "cryptic", "hostile", "stealth", "wraith", "cipher", "matrix",
+  "firefly", "termite", "cricket", "monarch", "ladybug", "blowfly",
+  "sandfly", "katydid", "pillbug", "stinkbug", "cutworm", "webworm",
+  "mealybug", "housefly", "june bug", "bedbug",
+  // Latin creeping in
+  "aranea", "acarina", "bombyx", "pieris", "lucanus",
 ];
 
 const TIER_4 = [
-  "overflow", "protocol", "firmware", "pipeline", "compiler", "debugger",
-  "skeleton", "throttle", "firewall", "terminal", "parallel", "upstream",
-  "artifact", "symbiote", "monolith", "sentinel", "labyrinth", "singularity",
-  "oblivion", "resonance", "cataclysm", "annihilate", "intercept", "overwrite",
+  "dragonfly", "bumblebee", "butterfly", "cockroach", "silverfish",
+  "centipede", "millipede", "mosquito", "damselfly", "caddisfly",
+  "woodlouse", "dung beetle", "stag beetle", "longhorn",
+  // Latin binomials
+  "musca domestica", "apis mellifera", "aedes aegypti",
+  "bombyx mori", "pieris rapae", "formica rufa",
+  "lucanus cervus", "pulex irritans", "cimex lectularius",
+  "blatta orientalis", "periplaneta americana",
+  "drosophila melanogaster", "anopheles gambiae",
+  "vespa mandarinia", "gryllus campestris",
+  "mantis religiosa", "scarabaeus sacer",
+  "acheta domesticus", "tenebrio molitor",
+  "blatella germanica", "dermatophagoides",
+  "ixodes scapularis", "pediculus humanus",
 ];
 
 function pickRandom<T>(arr: T[]): T {
@@ -33,9 +44,9 @@ function pickRandom<T>(arr: T[]): T {
 
 export function getWord(minLen: number, maxLen: number): string {
   const pools: string[][] = [];
-  if (minLen <= 3) pools.push(TIER_1);
-  if (minLen <= 5 && maxLen >= 4) pools.push(TIER_2);
-  if (minLen <= 7 && maxLen >= 5) pools.push(TIER_3);
+  if (minLen <= 4) pools.push(TIER_1);
+  if (minLen <= 6 && maxLen >= 4) pools.push(TIER_2);
+  if (minLen <= 8 && maxLen >= 5) pools.push(TIER_3);
   if (maxLen >= 7) pools.push(TIER_4);
 
   if (pools.length === 0) pools.push(TIER_2);

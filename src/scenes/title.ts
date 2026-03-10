@@ -28,9 +28,9 @@ function renderScreen(titleBuffer: string): string {
   lines.push(bLine(""));
   lines.push(bLine(`${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`));
   lines.push(bLine(""));
-  lines.push(bLine(`${c.dim}    The signal is failing.${c.reset}`));
-  lines.push(bLine(`${c.dim}    Hostile processes are flooding the wire.${c.reset}`));
-  lines.push(bLine(`${c.dim}    They arrive as words. They die the same way.${c.reset}`));
+  lines.push(bLine(`${c.dim}    The system is infested.${c.reset}`));
+  lines.push(bLine(`${c.dim}    Bugs are crawling through memory.${c.reset}`));
+  lines.push(bLine(`${c.dim}    Name them to squash them.${c.reset}`));
   lines.push(bLine(""));
   lines.push(bLine(`${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`));
   lines.push(bLine(""));
