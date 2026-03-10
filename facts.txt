@@ -1,0 +1,66 @@
+# Fun facts about bugs — both the crawly kind and the digital kind.
+# One fact per line. Shown on the game over screen.
+
+# --- Insect facts ---
+A cockroach can live for a week without its head.
+Ants can carry 50 times their own body weight.
+A flea can jump 150 times its own body length.
+Dragonflies have been on Earth for 300 million years.
+A honeybee visits up to 5,000 flowers in a single day.
+Mosquitoes are the deadliest animal on Earth.
+Beetles make up 25% of all known animal species.
+A fruit fly was the first living creature sent into space.
+Termites never sleep. Ever.
+A ladybug can eat 5,000 aphids in its lifetime.
+Butterflies taste with their feet.
+A housefly hums in the key of F.
+Fireflies are bioluminescent — they make cold light.
+Praying mantises can turn their heads 180 degrees.
+A queen ant can live for 30 years.
+Grasshoppers have ears on their bellies.
+Caterpillars have 12 eyes.
+Cicadas can stay underground for 17 years.
+A tarantula can survive 2 years without food.
+Scorpions glow under ultraviolet light.
+Dung beetles navigate using the Milky Way.
+Bees can recognize human faces.
+A single locust swarm can cover 460 square miles.
+Silkworm moths have no mouths — they can't eat.
+Cockroaches can hold their breath for 40 minutes.
+Bed bugs can survive a year without feeding.
+Ticks can swell to 200 times their unfed size.
+A spider's silk is stronger than steel by weight.
+Mayflies live for only 24 hours as adults.
+Mosquitoes prefer type O blood.
+Wasps make paper by chewing wood into pulp.
+The atlas moth has a 12-inch wingspan.
+Bombardier beetles spray boiling chemicals at enemies.
+Fleas accelerate faster than a space shuttle launch.
+Earwigs got their name from an old myth about ears.
+A swarm of desert locusts eats 423 million pounds a day.
+
+# --- Computer bug facts ---
+The first computer bug was a real moth found in 1947.
+A missing hyphen cost NASA $80 million in 1962.
+The Y2K bug cost over $300 billion to fix worldwide.
+The Morris Worm of 1988 was the first major internet worm.
+Pac-Man's kill screen at level 256 is an integer overflow.
+A 1-character typo once took down the entire internet in 1991.
+The term "debugging" predates computers by decades.
+The Therac-25 bug caused radiation overdoses in the 1980s.
+Ariane 5 exploded 37 seconds after launch due to a bug.
+Video game speedruns exploit bugs to skip entire levels.
+The Heartbleed bug exposed 17% of the internet's servers.
+Grace Hopper taped the first computer bug into a logbook.
+A Boeing 787 must reboot every 248 days or lose power.
+Gandalfs email crash exposed a Windows string parsing bug.
+The Mars Climate Orbiter crashed due to a metric conversion bug.
+Left-pad's removal from npm broke thousands of builds in 2016.
+The 2003 Northeast blackout was worsened by a software bug.
+Git was written by Linus Torvalds in 10 days.
+The average software has 15-50 bugs per 1000 lines of code.
+Apple's goto fail bug was caused by one duplicated line.
+Knight Capital lost $440 million in 45 minutes from a bug.
+Sony's PSN was down 23 days after a 2011 security breach.
+The Pentium FDIV bug cost Intel $475 million in 1994.
+World of Warcraft's Corrupted Blood plague modeled epidemics.

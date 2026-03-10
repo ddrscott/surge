@@ -1,9 +1,10 @@
-import { bLine, bDiv, c, renderTitleWord } from "../render.js";
+import { layout, bLine, bDiv, decorBar, padToRows, c, renderTitleWord } from "../render.js";
 import type { SceneContext } from "./types.js";
 
 let handler: ((key: string) => void) | null = null;
 
 function renderScreen(titleBuffer: string): string {
+  const { compact } = layout();
   const input = titleBuffer.toLowerCase();
   const surgeWord = renderTitleWord(
     "surge".startsWith(input) ? titleBuffer : "",
@@ -18,36 +19,46 @@ function renderScreen(titleBuffer: string): string {
     "quit"
   );
 
-  const bar = `${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`;
-
+  const dbar = decorBar();
   const lines: string[] = [];
-  lines.push("\x1b[H");
   lines.push(bDiv("═", "╔", "╗"));
+
+  if (compact) {
+    lines.push(bLine(dbar));
+    lines.push(bLine(`  ${c.cyan}${c.bold}S U R G E${c.reset}`));
+    lines.push(bLine(dbar));
+    lines.push(bLine(`${c.dim}  Bugs in memory.${c.reset}`));
+    lines.push(bLine(`${c.dim}  Type to squash.${c.reset}`));
+  } else {
+    lines.push(bLine(""));
+    lines.push(bLine(dbar));
+    lines.push(bLine(""));
+    lines.push(bLine(`${c.cyan}${c.bold}                  ███████ ██    ██ ██████   ██████  ███████${c.reset}`));
+    lines.push(bLine(`${c.cyan}${c.bold}                  ██      ██    ██ ██   ██ ██       ██${c.reset}`));
+    lines.push(bLine(`${c.cyan}${c.bold}                  ███████ ██    ██ ██████  ██   ███ █████${c.reset}`));
+    lines.push(bLine(`${c.cyan}${c.bold}                       ██ ██    ██ ██   ██ ██    ██ ██${c.reset}`));
+    lines.push(bLine(`${c.cyan}${c.bold}                  ███████  ██████  ██   ██  ██████  ███████${c.reset}`));
+    lines.push(bLine(""));
+    lines.push(bLine(dbar));
+    lines.push(bLine(""));
+    lines.push(bLine(`${c.dim}    The system is infested.${c.reset}`));
+    lines.push(bLine(`${c.dim}    Bugs are crawling through memory.${c.reset}`));
+    lines.push(bLine(`${c.dim}    Name them to squash them.${c.reset}`));
+  }
+
   lines.push(bLine(""));
-  lines.push(bLine(bar));
+  if (!compact) lines.push(bLine(dbar));
+  if (!compact) lines.push(bLine(""));
+  lines.push(bLine(`  ${c.dim}type${c.reset} ${surgeWord} ${c.dim}to jack in${c.reset}`));
+  lines.push(bLine(`  ${c.dim}type${c.reset} ${helpWord}  ${c.dim}for briefing${c.reset}`));
+  lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord}  ${c.dim}to walk away${c.reset}`));
   lines.push(bLine(""));
-  lines.push(bLine(`${c.cyan}${c.bold}                  ███████ ██    ██ ██████   ██████  ███████${c.reset}`));
-  lines.push(bLine(`${c.cyan}${c.bold}                  ██      ██    ██ ██   ██ ██       ██${c.reset}`));
-  lines.push(bLine(`${c.cyan}${c.bold}                  ███████ ██    ██ ██████  ██   ███ █████${c.reset}`));
-  lines.push(bLine(`${c.cyan}${c.bold}                       ██ ██    ██ ██   ██ ██    ██ ██${c.reset}`));
-  lines.push(bLine(`${c.cyan}${c.bold}                  ███████  ██████  ██   ██  ██████  ███████${c.reset}`));
-  lines.push(bLine(""));
-  lines.push(bLine(bar));
-  lines.push(bLine(""));
-  lines.push(bLine(`${c.dim}    The system is infested.${c.reset}`));
-  lines.push(bLine(`${c.dim}    Bugs are crawling through memory.${c.reset}`));
-  lines.push(bLine(`${c.dim}    Name them to squash them.${c.reset}`));
-  lines.push(bLine(""));
-  lines.push(bLine(bar));
-  lines.push(bLine(""));
-  lines.push(bLine(`    ${c.dim}type${c.reset} ${surgeWord} ${c.dim}to jack in${c.reset}`));
-  lines.push(bLine(`    ${c.dim}type${c.reset} ${helpWord}  ${c.dim}for briefing${c.reset}`));
-  lines.push(bLine(`    ${c.dim}type${c.reset} ${quitWord}  ${c.dim}to walk away${c.reset}`));
-  lines.push(bLine(""));
-  lines.push(bLine(`    ${c.dim}█${c.reset}`));
+  lines.push(bLine(`  ${c.dim}█${c.reset}`));
+
+  padToRows(lines);
   lines.push(bDiv("═", "╚", "╝"));
 
-  return lines.join("\n") + "\x1b[J";
+  return "\x1b[H" + lines.join("\n") + "\x1b[J";
 }
 
 export function enter(ctx: SceneContext): void {

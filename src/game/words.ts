@@ -1,44 +1,21 @@
-// Bug/insect word pools by difficulty tier
-// Mix of common names and Latin binomials
-
-const TIER_1 = [
-  "ant", "bee", "fly", "bug", "mite", "tick", "flea", "gnat",
-  "wasp", "moth", "slug", "worm", "lice", "grub", "nit",
-];
-
-const TIER_2 = [
-  "roach", "aphid", "larva", "louse", "drone", "nymph",
-  "hornet", "mantis", "earwig", "weevil", "thrips", "maggot",
-  "cicada", "sawfly", "botfly", "spider", "locust",
-  "beetle", "chigoe", "midge", "borer",
-];
-
-const TIER_3 = [
-  "firefly", "termite", "cricket", "monarch", "ladybug", "blowfly",
-  "sandfly", "katydid", "pillbug", "stinkbug", "cutworm", "webworm",
-  "mealybug", "housefly", "june bug", "bedbug",
-  // Latin creeping in
-  "aranea", "acarina", "bombyx", "pieris", "lucanus",
-];
-
-const TIER_4 = [
-  "dragonfly", "bumblebee", "butterfly", "cockroach", "silverfish",
-  "centipede", "millipede", "mosquito", "damselfly", "caddisfly",
-  "woodlouse", "dung beetle", "stag beetle", "longhorn",
-  // Latin binomials
-  "musca domestica", "apis mellifera", "aedes aegypti",
-  "bombyx mori", "pieris rapae", "formica rufa",
-  "lucanus cervus", "pulex irritans", "cimex lectularius",
-  "blatta orientalis", "periplaneta americana",
-  "drosophila melanogaster", "anopheles gambiae",
-  "vespa mandarinia", "gryllus campestris",
-  "mantis religiosa", "scarabaeus sacer",
-  "acheta domesticus", "tenebrio molitor",
-  "blatella germanica", "dermatophagoides",
-  "ixodes scapularis", "pediculus humanus",
-];
-
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { PowerUpEffect } from "../types.js";
+
+// Load bug dictionary from plain text file (one word per line, # comments)
+const bugsPath = join(process.cwd(), "bugs.txt");
+const ALL_WORDS: string[] = readFileSync(bugsPath, "utf-8")
+  .split("\n")
+  .map((line) => line.trim())
+  .filter((line) => line && !line.startsWith("#"));
+
+// Bucket words by length for wave difficulty matching
+const buckets = new Map<number, string[]>();
+for (const word of ALL_WORDS) {
+  const len = word.length;
+  if (!buckets.has(len)) buckets.set(len, []);
+  buckets.get(len)!.push(word);
+}
 
 export interface PowerUpWord {
   word: string;
@@ -66,17 +43,33 @@ export function getPowerUp(): PowerUpWord {
   return pickRandom(POWER_UPS);
 }
 
-export function getWord(minLen: number, maxLen: number): string {
-  const pools: string[][] = [];
-  if (minLen <= 4) pools.push(TIER_1);
-  if (minLen <= 6 && maxLen >= 4) pools.push(TIER_2);
-  if (minLen <= 8 && maxLen >= 5) pools.push(TIER_3);
-  if (maxLen >= 7) pools.push(TIER_4);
+/** Pick a word that doesn't collide with any currently active word (no prefix overlaps). */
+export function getWord(minLen: number, maxLen: number, activeWords: string[] = []): string {
+  // Gather candidates from all matching length buckets
+  const candidates: string[] = [];
+  for (const [len, words] of buckets) {
+    if (len >= minLen && len <= maxLen) {
+      candidates.push(...words);
+    }
+  }
 
-  if (pools.length === 0) pools.push(TIER_2);
+  if (candidates.length === 0) return pickRandom(ALL_WORDS);
 
-  const pool = pickRandom(pools);
-  const candidates = pool.filter((w) => w.length >= minLen && w.length <= maxLen);
-  if (candidates.length === 0) return pickRandom(pool);
+  // Filter out words that conflict with active on-screen words
+  const active = activeWords.map((w) => w.toLowerCase());
+  const safe = candidates.filter((w) => {
+    const wl = w.toLowerCase();
+    for (const a of active) {
+      if (wl === a) return false;           // exact duplicate
+      if (wl.startsWith(a)) return false;   // active word is prefix of candidate
+      if (a.startsWith(wl)) return false;   // candidate is prefix of active word
+    }
+    return true;
+  });
+
+  if (safe.length > 0) return pickRandom(safe);
+  // Fallback: at least avoid exact duplicates
+  const deduped = candidates.filter((w) => !active.includes(w.toLowerCase()));
+  if (deduped.length > 0) return pickRandom(deduped);
   return pickRandom(candidates);
 }

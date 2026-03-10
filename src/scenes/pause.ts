@@ -1,5 +1,5 @@
 import type { GameState } from "../types.js";
-import { c, bLine, bDiv, renderTitleWord } from "../render.js";
+import { bLine, bDiv, decorBar, padToRows, c, renderTitleWord } from "../render.js";
 import type { SceneContext } from "./types.js";
 
 let handler: ((key: string) => void) | null = null;
@@ -17,34 +17,26 @@ function renderScreen(inputBuffer: string): string {
     "quit"
   );
 
-  const bar = `${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`;
+  const dbar = decorBar();
 
-  lines.push("\x1b[H");
   lines.push(bDiv("═", "╔", "╗"));
   lines.push(bLine(""));
+  lines.push(bLine(dbar));
   lines.push(bLine(""));
+  lines.push(bLine(`${c.yellow}${c.bold}  PAUSED${c.reset}`));
   lines.push(bLine(""));
+  lines.push(bLine(dbar));
   lines.push(bLine(""));
+  lines.push(bLine(`  ${c.dim}type${c.reset} ${resumeWord} ${c.dim}to get back in${c.reset}`));
+  lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord}   ${c.dim}to walk away${c.reset}`));
+  lines.push(bLine(`  ${c.dim}or press${c.reset} ${c.yellow}${c.bold}ESC${c.reset} ${c.dim}to resume${c.reset}`));
   lines.push(bLine(""));
-  lines.push(bLine(""));
-  lines.push(bLine(bar));
-  lines.push(bLine(""));
-  lines.push(bLine(`${c.yellow}${c.bold}              PAUSED${c.reset}`));
-  lines.push(bLine(""));
-  lines.push(bLine(bar));
-  lines.push(bLine(""));
-  lines.push(bLine(""));
-  lines.push(bLine(`              ${c.dim}type${c.reset} ${resumeWord} ${c.dim}to get back in${c.reset}`));
-  lines.push(bLine(`              ${c.dim}type${c.reset} ${quitWord}   ${c.dim}to walk away${c.reset}`));
-  lines.push(bLine(`              ${c.dim}or press${c.reset} ${c.yellow}${c.bold}ESC${c.reset} ${c.dim}to resume${c.reset}`));
-  lines.push(bLine(""));
-  lines.push(bLine(`              ${c.dim}█${c.reset}`));
-  lines.push(bLine(""));
-  lines.push(bLine(""));
-  lines.push(bLine(""));
+  lines.push(bLine(`  ${c.dim}█${c.reset}`));
+
+  padToRows(lines);
   lines.push(bDiv("═", "╚", "╝"));
 
-  return lines.join("\n") + "\x1b[J";
+  return "\x1b[H" + lines.join("\n") + "\x1b[J";
 }
 
 export function enter(ctx: SceneContext, data?: unknown): void {

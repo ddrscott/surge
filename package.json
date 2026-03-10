@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node dist/main.js",
     "dev": "tsx src/main.ts",
-    "build": "tsc",
+    "build": "tsx scripts/validate-bugs.ts && tsx scripts/validate-facts.ts && tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

@@ -1,6 +1,5 @@
 import type { Enemy, GameState, Zone } from "../types.js";
-import { NUM_LANES } from "../types.js";
-import { c, bLine, bDiv, WIDTH, WALL_MAX, FIELD_WIDTH, RIGHT_COL, zoneColor, bar, hpColor } from "../render.js";
+import { layout, c, bLine, bDiv, zoneColor, bar, hpColor } from "../render.js";
 import { createGame } from "../game/state.js";
 import { gameTick, processInput, findTarget, getZone, comboMultiplier } from "../game/logic.js";
 import type { SceneContext } from "./types.js";
@@ -63,12 +62,13 @@ const SCROLL_IN = 0.15;
  * Returns col (on-screen column) and startIdx/endIdx (visible char range).
  */
 function wordLayout(enemy: Enemy): { col: number; startIdx: number; endIdx: number } {
+  const { fieldWidth } = layout();
   const len = enemy.word.length;
-  const maxCol = FIELD_WIDTH - len - 2; // leftmost col where full word fits near right
+  const maxCol = fieldWidth - len; // word starts at the right border edge
 
   if (enemy.position <= 0) {
     // Not yet on screen
-    return { col: FIELD_WIDTH, startIdx: len, endIdx: len };
+    return { col: fieldWidth, startIdx: len, endIdx: len };
   }
 
   if (enemy.position < SCROLL_IN) {
@@ -128,6 +128,7 @@ function renderDeath(enemy: Enemy, tick: number): string {
 
 /** Build the bottom ╚══[ input ]══╝ border with embedded typing */
 function bottomBorder(state: GameState, target: Enemy | null): string {
+  const { width } = layout();
   const input = state.inputBuffer;
   const surgeReady = state.surgeReady;
 
@@ -150,7 +151,7 @@ function bottomBorder(state: GameState, target: Enemy | null): string {
   }
 
   const bracketLen = displayText.length + 2; // [ and ]
-  const fillTotal = WIDTH - bracketLen;
+  const fillTotal = Math.max(0, width - bracketLen);
   const leftFill = Math.floor(fillTotal / 2);
   const rightFill = fillTotal - leftFill;
 
@@ -167,29 +168,37 @@ function bottomBorder(state: GameState, target: Enemy | null): string {
 }
 
 function render(state: GameState): string {
+  const { wallMax, rightCol, lanes, compact, barWidth } = layout();
   const lines: string[] = [];
-
-  lines.push("\x1b[H"); // cursor home
 
   // Header
   lines.push(bDiv("═", "╔", "╗"));
 
-  const hpBar = `${hpColor(state.hp, state.maxHp)}${bar(state.hp, state.maxHp, 12)}${c.reset}`;
+  const hpBar = `${hpColor(state.hp, state.maxHp)}${bar(state.hp, state.maxHp, barWidth)}${c.reset}`;
   const surgeBar = state.surgeReady
-    ? `${c.magenta}${c.bold}▓▓ SURGE ▓▓${c.reset}`
-    : `${c.blue}${bar(state.surgeMeter, state.surgeThreshold, 12)}${c.reset}`;
+    ? `${c.magenta}${c.bold}${compact ? "SURGE!" : "▓▓ SURGE ▓▓"}${c.reset}`
+    : `${c.blue}${bar(state.surgeMeter, state.surgeThreshold, barWidth)}${c.reset}`;
 
-  lines.push(bLine(
-    `  ${c.dim}integrity${c.reset} ${hpBar}  ${c.dim}surge${c.reset} ${surgeBar}`
-  ));
-  lines.push(bLine(
-    `  ${c.dim}wave${c.reset} ${c.bold}${state.wave + 1}${c.reset}    ${c.dim}x${c.reset}${c.bold}${state.combo}${c.reset} ${c.yellow}${c.bold}(${comboMultiplier(state.combo)}x)${c.reset}    ${c.bold}${state.score.toLocaleString()}${c.reset}`
-  ));
+  if (compact) {
+    // Single header line for small terminals
+    const cm = comboMultiplier(state.combo);
+    lines.push(bLine(
+      ` ${hpBar} ${surgeBar} ${c.dim}w${c.reset}${c.bold}${state.wave + 1}${c.reset} ${c.dim}x${c.reset}${c.bold}${state.combo}${c.reset}${c.yellow}(${cm}x)${c.reset} ${c.bold}${state.score.toLocaleString()}${c.reset}`
+    ));
+  } else {
+    // Two header lines for standard terminals
+    lines.push(bLine(
+      `  ${c.dim}integrity${c.reset} ${hpBar}  ${c.dim}surge${c.reset} ${surgeBar}`
+    ));
+    lines.push(bLine(
+      `  ${c.dim}wave${c.reset} ${c.bold}${state.wave + 1}${c.reset}    ${c.dim}x${c.reset}${c.bold}${state.combo}${c.reset} ${c.yellow}${c.bold}(${comboMultiplier(state.combo)}x)${c.reset}    ${c.bold}${state.score.toLocaleString()}${c.reset}`
+    ));
+  }
   lines.push(bDiv("═", "╠", "╣"));
 
   // Wall — a barrier on the LEFT that erodes as HP drops
   const hpRatio = state.hp / state.maxHp;
-  const wallWidth = Math.round(hpRatio * WALL_MAX);
+  const wallWidth = Math.round(hpRatio * wallMax);
   let wallColor: string;
   if (hpRatio > 0.6) wallColor = c.dim;
   else if (hpRatio > 0.3) wallColor = c.yellow;
@@ -198,14 +207,16 @@ function render(state: GameState): string {
     ? `${wallColor}${"█".repeat(wallWidth)}${c.reset}`
     : `${c.red}${c.bold}|${c.reset}`;
 
-  // Zone markers — left border + wall + status hints
-  const effects: string[] = [];
-  if (state.doubleScoreUntil > state.tick) effects.push(`${c.magenta}${c.bold}2x SCORE${c.reset}`);
-  if (state.slowUntil > state.tick) effects.push(`${c.magenta}${c.bold}FREEZE${c.reset}`);
-  const statusHint = effects.length > 0
-    ? `  ${effects.join("  ")}`
-    : `${c.dim}type the word to${c.reset} ${c.red}${c.bold}SQUASH${c.reset}`;
-  lines.push(`${c.cyan}║${c.reset}${wallStr}  ${c.dim}·${c.reset}                                        ${statusHint}\x1b[K\x1b[${RIGHT_COL}G${c.cyan}║${c.reset}`);
+  // Status line (standard only)
+  if (!compact) {
+    const effects: string[] = [];
+    if (state.doubleScoreUntil > state.tick) effects.push(`${c.magenta}${c.bold}2x SCORE${c.reset}`);
+    if (state.slowUntil > state.tick) effects.push(`${c.magenta}${c.bold}FREEZE${c.reset}`);
+    const statusHint = effects.length > 0
+      ? `  ${effects.join("  ")}`
+      : `${c.dim}type the word to${c.reset} ${c.red}${c.bold}SQUASH${c.reset}`;
+    lines.push(`${c.cyan}║${c.reset}${wallStr}  ${c.dim}·${c.reset}  ${statusHint}\x1b[K\x1b[${rightCol}G${c.cyan}║${c.reset}`);
+  }
 
   // Build lane map — living enemies take priority, dead ones shown as ghosts
   const liveLaneMap = new Map<number, Enemy>();
@@ -225,7 +236,7 @@ function render(state: GameState): string {
   const inputLen = state.inputBuffer.length;
 
   // Render fixed lanes (content only, borders added in wall stamp pass)
-  for (let lane = 0; lane < NUM_LANES; lane++) {
+  for (let lane = 0; lane < lanes; lane++) {
     const alive = liveLaneMap.get(lane);
     if (alive) {
       const { col, startIdx, endIdx } = wordLayout(alive);
@@ -257,10 +268,10 @@ function render(state: GameState): string {
   }
 
   // Stamp left border + wall + right border on each lane line
-  for (let i = 0; i < NUM_LANES; i++) {
-    const lineIdx = lines.length - NUM_LANES + i;
+  for (let i = 0; i < lanes; i++) {
+    const lineIdx = lines.length - lanes + i;
     const raw = lines[lineIdx]!;
-    lines[lineIdx] = `${c.cyan}║${c.reset}${wallStr}` + raw + `\x1b[K\x1b[${RIGHT_COL}G${c.cyan}║${c.reset}`;
+    lines[lineIdx] = `${c.cyan}║${c.reset}${wallStr}` + raw + `\x1b[K\x1b[${rightCol}G${c.cyan}║${c.reset}`;
   }
 
   lines.push(bDiv("─", "╟", "╢"));
@@ -268,7 +279,7 @@ function render(state: GameState): string {
   // Bottom border with embedded input
   lines.push(bottomBorder(state, target));
 
-  return lines.join("\n") + "\x1b[J";
+  return "\x1b[H" + lines.join("\n") + "\x1b[J";
 }
 
 export function enter(ctx: SceneContext, data?: unknown): void {

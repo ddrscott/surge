@@ -1,5 +1,5 @@
 import type { Enemy, GameState, HitResult, PowerUpEffect, WaveConfig, Zone } from "../types.js";
-import { NUM_LANES } from "../types.js";
+import { layout } from "../render.js";
 import { getWord, getPowerUp } from "./words.js";
 
 const ZONE_THRESHOLDS = {
@@ -19,19 +19,21 @@ export function comboMultiplier(combo: number): number {
   return 1 + Math.floor(combo / 3) * 0.5;
 }
 
-// Speeds are letters-per-tick for typewriter reveal (50ms tick = 20fps)
+const FPS = 20; // 50ms tick
+
+// Speeds are in screen widths per second (position is 0–1 normalized).
+// 0.25 sw/s ≈ 4 seconds to cross. Same real time on any terminal width.
 // Phrase-based spawning: enemies arrive in bursts with rests between them.
-// phraseSize = enemies per burst, phrasePace = ticks within burst, phraseGap = rest between bursts.
 const WAVES: WaveConfig[] = [
-  //                                                                    phrase  pace  gap
-  { enemyCount: 6,  minSpeed: 0.06, maxSpeed: 0.10, minWordLength: 3, maxWordLength: 4,  phraseSize: 2, phrasePace: 12, phraseGap: 50 },
-  { enemyCount: 8,  minSpeed: 0.06, maxSpeed: 0.11, minWordLength: 3, maxWordLength: 5,  phraseSize: 2, phrasePace: 10, phraseGap: 44 },
-  { enemyCount: 10, minSpeed: 0.07, maxSpeed: 0.12, minWordLength: 3, maxWordLength: 6,  phraseSize: 3, phrasePace: 8,  phraseGap: 40 },
-  { enemyCount: 12, minSpeed: 0.08, maxSpeed: 0.13, minWordLength: 4, maxWordLength: 7,  phraseSize: 3, phrasePace: 8,  phraseGap: 36 },
-  { enemyCount: 14, minSpeed: 0.08, maxSpeed: 0.15, minWordLength: 4, maxWordLength: 8,  phraseSize: 3, phrasePace: 6,  phraseGap: 32 },
-  { enemyCount: 16, minSpeed: 0.09, maxSpeed: 0.17, minWordLength: 4, maxWordLength: 9,  phraseSize: 4, phrasePace: 6,  phraseGap: 28 },
-  { enemyCount: 19, minSpeed: 0.10, maxSpeed: 0.19, minWordLength: 5, maxWordLength: 10, phraseSize: 4, phrasePace: 5,  phraseGap: 24 },
-  { enemyCount: 22, minSpeed: 0.11, maxSpeed: 0.22, minWordLength: 5, maxWordLength: 11, phraseSize: 4, phrasePace: 4,  phraseGap: 20 },
+  //                                                                      phrase  pace  gap
+  { enemyCount: 6,  minSpeed: 0.10, maxSpeed: 0.15, minWordLength: 3, maxWordLength: 4,  phraseSize: 2, phrasePace: 12, phraseGap: 50 },
+  { enemyCount: 8,  minSpeed: 0.15, maxSpeed: 0.22, minWordLength: 3, maxWordLength: 5,  phraseSize: 2, phrasePace: 10, phraseGap: 44 },
+  { enemyCount: 10, minSpeed: 0.25, maxSpeed: 0.40, minWordLength: 3, maxWordLength: 6,  phraseSize: 3, phrasePace: 8,  phraseGap: 40 },
+  { enemyCount: 12, minSpeed: 0.28, maxSpeed: 0.45, minWordLength: 4, maxWordLength: 7,  phraseSize: 3, phrasePace: 8,  phraseGap: 36 },
+  { enemyCount: 14, minSpeed: 0.30, maxSpeed: 0.50, minWordLength: 4, maxWordLength: 8,  phraseSize: 3, phrasePace: 6,  phraseGap: 32 },
+  { enemyCount: 16, minSpeed: 0.35, maxSpeed: 0.55, minWordLength: 4, maxWordLength: 9,  phraseSize: 4, phrasePace: 6,  phraseGap: 28 },
+  { enemyCount: 19, minSpeed: 0.40, maxSpeed: 0.65, minWordLength: 5, maxWordLength: 10, phraseSize: 4, phrasePace: 5,  phraseGap: 24 },
+  { enemyCount: 22, minSpeed: 0.45, maxSpeed: 0.75, minWordLength: 5, maxWordLength: 11, phraseSize: 4, phrasePace: 4,  phraseGap: 20 },
 ];
 
 function getWaveConfig(wave: number): WaveConfig {
@@ -55,13 +57,14 @@ function randBetween(min: number, max: number): number {
 }
 
 function pickLane(state: GameState): number {
+  const { lanes } = layout();
   const occupied = new Set(state.enemies.filter((e) => !e.dead).map((e) => e.lane));
   const free: number[] = [];
-  for (let i = 0; i < NUM_LANES; i++) {
+  for (let i = 0; i < lanes; i++) {
     if (!occupied.has(i)) free.push(i);
   }
   if (free.length > 0) return free[Math.floor(Math.random() * free.length)]!;
-  return Math.floor(Math.random() * NUM_LANES);
+  return Math.floor(Math.random() * lanes);
 }
 
 export function getZone(position: number): Zone {
@@ -82,15 +85,17 @@ export function revealedCount(enemy: Enemy): number {
 }
 
 function spawnEnemy(state: GameState, config: WaveConfig): Enemy {
-  const word = getWord(config.minWordLength, config.maxWordLength);
-  const speed = randBetween(config.minSpeed, config.maxSpeed);
+  const activeWords = state.enemies.filter((e) => !e.dead).map((e) => e.word);
+  const word = getWord(config.minWordLength, config.maxWordLength, activeWords);
+  const swps = randBetween(config.minSpeed, config.maxSpeed); // screen widths/sec
+  const speed = swps / FPS; // convert to position/tick
   return {
     id: nextEnemyId++,
     word,
     position: 0,
     speed,
     damage: 10 + word.length * 2,
-    points: Math.round(speed * word.length * 500),
+    points: Math.round(swps * word.length * 500),
     dead: false,
     spawnedAt: state.tick,
     lane: pickLane(state),
@@ -103,14 +108,15 @@ function spawnEnemy(state: GameState, config: WaveConfig): Enemy {
 
 function spawnPowerUp(state: GameState, config: WaveConfig): Enemy {
   const pu = getPowerUp();
-  const speed = randBetween(config.maxSpeed * 1.5, config.maxSpeed * 2.5);
+  const swps = randBetween(config.maxSpeed * 1.5, config.maxSpeed * 2.5);
+  const speed = swps / FPS;
   return {
     id: nextEnemyId++,
     word: pu.word,
     position: 0,
     speed,
     damage: 0,
-    points: Math.round(speed * pu.word.length * 500),
+    points: Math.round(swps * pu.word.length * 500),
     dead: false,
     spawnedAt: state.tick,
     lane: pickLane(state),
@@ -310,8 +316,8 @@ export function gameTick(state: GameState): void {
 
     // Power-ups ignore slow (they're helpers, not enemies)
     const slow = enemy.powerUp ? 1.0 : slowFactor;
-    // speed is letters-per-tick; convert to position units
-    enemy.position += (enemy.speed / enemy.word.length) * slow;
+    // speed is position/tick (already converted from screen widths/sec)
+    enemy.position += enemy.speed * slow;
 
     if (enemy.position >= ZONE_THRESHOLDS.CRITICAL) {
       enemy.dead = true;

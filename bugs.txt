@@ -1,0 +1,231 @@
+# Bug dictionary for Surge
+# One word per line. Lines starting with # are comments.
+# The game buckets words by length automatically.
+
+# --- 3-letter ---
+ant
+bee
+fly
+bug
+nit
+
+# --- 4-letter ---
+mite
+tick
+flea
+gnat
+wasp
+moth
+slug
+worm
+lice
+grub
+midge
+dung
+pest
+cleg
+pixy
+
+# --- 5-letter ---
+roach
+aphid
+larva
+louse
+drone
+nymph
+borer
+imago
+aedes
+musca
+pulex
+cimex
+venom
+swarm
+horde
+mange
+sting
+
+# --- 6-letter ---
+hornet
+mantis
+earwig
+weevil
+thrips
+maggot
+cicada
+sawfly
+botfly
+spider
+locust
+beetle
+chigoe
+bedbug
+cocoon
+scarab
+gadfly
+mayfly
+no-see
+chafer
+hopper
+earworm
+
+# --- 7-letter ---
+firefly
+termite
+cricket
+monarch
+ladybug
+blowfly
+sandfly
+katydid
+pillbug
+cutworm
+webworm
+aranea
+acarina
+bombyx
+pieris
+lucanus
+antenna
+chrysalis
+deathwatch
+june bug
+lampyrid
+tabanus
+syrphid
+stylops
+phasmid
+tabanid
+corn fly
+
+# --- 8-letter ---
+stinkbug
+mealybug
+housefly
+mosquito
+silkworm
+bookworm
+glowworm
+army worm
+wireworm
+hornworm
+inchworm
+leafworm
+bagworm
+cankerworm
+sand flea
+wood tick
+deer tick
+body lice
+head lice
+
+# --- 9-letter ---
+dragonfly
+bumblebee
+butterfly
+cockroach
+damselfly
+caddisfly
+woodlouse
+longhorn
+centipede
+millipede
+ambush bug
+shield bug
+stink bug
+plant bug
+wheel bug
+sow bug
+fruit fly
+crane fly
+flesh fly
+hover fly
+horse fly
+black fly
+tsetse fly
+dobsonfly
+whitefly
+paper wasp
+mud dauber
+fire ant
+army ant
+leaf miner
+
+# --- 10-letter ---
+silverfish
+dung beetle
+stag beetle
+bark beetle
+flea beetle
+leaf beetle
+tiger beetle
+click beetle
+blister beetle
+carpet beetle
+water beetle
+june beetle
+ground beetle
+diving beetle
+whirligig
+leaf hopper
+tree hopper
+plant hopper
+frog hopper
+lacewing
+leafcutter
+leafroller
+corn borer
+pine borer
+bark borer
+stem borer
+
+# --- Latin binomials ---
+musca domestica
+apis mellifera
+aedes aegypti
+bombyx mori
+pieris rapae
+formica rufa
+lucanus cervus
+pulex irritans
+cimex lectularius
+blatta orientalis
+periplaneta americana
+drosophila melanogaster
+anopheles gambiae
+vespa mandarinia
+gryllus campestris
+mantis religiosa
+scarabaeus sacer
+acheta domesticus
+tenebrio molitor
+blatella germanica
+dermatophagoides
+ixodes scapularis
+pediculus humanus
+solenopsis invicta
+apis cerana
+vespa crabro
+musca autumnalis
+stomoxys calcitrans
+tabanus bovinus
+chrysops relictus
+simulium damnosum
+culex pipiens
+aedes albopictus
+phlebotomus papatasi
+ctenocephalides felis
+sarcoptes scabiei
+demodex folliculorum
+pediculus capitis
+phthirus pubis
+cimex hemipterus
+tribolium castaneum
+sitophilus granarius
+callosobruchus maculatus
+trogoderma granarium
+ephestia kuehniella
+plodia interpunctella
+tineola bisselliella
+lepisma saccharina
+thermobia domestica

@@ -1,9 +1,33 @@
 import type { Zone } from "./types.js";
 
-export const WIDTH = 78;
-export const WALL_MAX = 4;
-export const FIELD_WIDTH = WIDTH - WALL_MAX - 6; // leave room for padding + wall
-export const RIGHT_COL = WIDTH + 2; // column for right border (1 left + WIDTH content + 1 right)
+export interface Layout {
+  width: number;
+  wallMax: number;
+  fieldWidth: number;
+  rightCol: number;
+  lanes: number;
+  compact: boolean;
+  rows: number;
+  cols: number;
+  barWidth: number;
+}
+
+/** Compute layout from current terminal size */
+export function layout(): Layout {
+  const cols = Math.max(30, process.stdout.columns || 80);
+  const rows = Math.max(8, process.stdout.rows || 24);
+  const compact = cols < 60 || rows < 18;
+  const width = cols - 2;
+  const wallMax = compact ? 2 : 4;
+  const fieldWidth = width - wallMax - (compact ? 3 : 6);
+  const rightCol = cols;
+  // Standard: top(1) + header(2) + div(1) + status(1) + lanes + div(1) + bottom(1) = lanes + 7
+  // Compact:  top(1) + header(1) + div(1) + lanes + div(1) + bottom(1) = lanes + 5
+  const overhead = compact ? 5 : 7;
+  const lanes = Math.max(3, rows - overhead);
+  const barWidth = compact ? 6 : 12;
+  return { width, wallMax, fieldWidth, rightCol, lanes, compact, rows, cols, barWidth };
+}
 
 export const c = {
   reset: "\x1b[0m",
@@ -26,12 +50,21 @@ export const c = {
 
 /** Wrap content line with left/right box borders */
 export function bLine(content: string, color = c.cyan): string {
-  return `${color}║${c.reset}${content}\x1b[K\x1b[${RIGHT_COL}G${color}║${c.reset}`;
+  const { rightCol } = layout();
+  return `${color}║${c.reset}${content}\x1b[K\x1b[${rightCol}G${color}║${c.reset}`;
 }
 
 /** Create a full-width divider with box corners */
 export function bDiv(fill: string, left: string, right: string, color = c.cyan): string {
-  return `${color}${left}${fill.repeat(WIDTH)}${right}${c.reset}`;
+  const { width } = layout();
+  return `${color}${left}${fill.repeat(width)}${right}${c.reset}`;
+}
+
+/** Decorative bar that scales to terminal width */
+export function decorBar(): string {
+  const { width } = layout();
+  const barWidth = Math.max(4, width - 8);
+  return `${c.dim}    ${"░".repeat(barWidth)}${c.reset}`;
 }
 
 export function zoneColor(zone: Zone): string {
@@ -66,4 +99,15 @@ export function renderTitleWord(typed: string, word: string): string {
   const remaining = word.slice(matched);
 
   return `${c.bgGreen}${c.black}${c.bold}${matchedPart}${c.reset}${c.cyan}${c.bold}${remaining}${c.reset}`;
+}
+
+/** Pad lines array so total output fills `rows`.
+ *  Call BEFORE pushing the bottom border line. */
+export function padToRows(lines: string[], borderColor = c.cyan): void {
+  const { rows } = layout();
+  // We still need to add 1 bottom border after this call
+  const needed = rows - lines.length - 1;
+  for (let i = 0; i < needed; i++) {
+    lines.push(bLine("", borderColor));
+  }
 }

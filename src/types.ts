@@ -5,7 +5,7 @@ export interface Enemy {
   word: string;
   /** Reveal progress from 0 (hidden) to 1+ (fully revealed, grace period) */
   position: number;
-  /** Reveal speed: letters per tick */
+  /** Movement speed: position units per tick */
   speed: number;
   /** Base damage if it times out */
   damage: number;
@@ -26,8 +26,6 @@ export interface Enemy {
   /** If set, this is a power-up, not a bug */
   powerUp: PowerUpEffect | null;
 }
-
-export const NUM_LANES = 17;
 
 export type Zone = "SAFE" | "RISKY" | "CRITICAL" | "MISSED";
 
@@ -68,9 +66,9 @@ export interface GameState {
 
 export interface WaveConfig {
   enemyCount: number;
-  /** Min reveal speed: letters per tick */
+  /** Min speed: screen widths per second */
   minSpeed: number;
-  /** Max reveal speed: letters per tick */
+  /** Max speed: screen widths per second */
   maxSpeed: number;
   minWordLength: number;
   maxWordLength: number;
