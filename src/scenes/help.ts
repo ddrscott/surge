@@ -16,20 +16,21 @@ function renderScreen(): string {
   lines.push(bLine(""));
 
   if (compact) {
-    lines.push(bLine(`${c.dim}  Type the word to kill it.${c.reset}`));
+    lines.push(bLine(`${c.dim}  rm them before they rm you.${c.reset}`));
     lines.push(bLine(`${c.dim}  Close = more points.${c.reset}`));
     lines.push(bLine(`${c.dim}  Fill surge, type surge.${c.reset}`));
     lines.push(bLine(`${c.dim}  ${c.magenta}power-ups${c.reset}${c.dim} move fast.${c.reset}`));
   } else {
     lines.push(bLine(`${c.dim}    You're a process inside a dying machine.${c.reset}`));
-    lines.push(bLine(`${c.dim}    Bugs are crawling toward your stack frame. Type their name to squash them.${c.reset}`));
+    lines.push(bLine(`${c.dim}    Bugs are lodged in memory. The firewall sends ${c.reset}${c.red}red wires${c.reset}${c.dim} to pull them in.${c.reset}`));
+    lines.push(bLine(`${c.dim}    ${c.reset}${c.red}rm${c.reset}${c.dim} them before they ${c.reset}${c.red}rm${c.reset}${c.dim} you. Type their name before the wire makes contact.${c.reset}`));
     lines.push(bLine(""));
-    lines.push(bLine(`${c.dim}    As you type, your target locks on:  ${c.bgGreen}${c.black}${c.bold}hor${c.reset}${c.green}${c.bold}net${c.reset}  ${c.dim}— locked, still crawling${c.reset}`));
+    lines.push(bLine(`${c.dim}    As you type, your target locks on:  ${c.bgGreen}${c.black}${c.bold}hor${c.reset}${c.green}${c.bold}net${c.reset}  ${c.dim}— locked${c.reset}`));
     lines.push(bLine(""));
-    lines.push(bLine(`${c.dim}    Wait for the kill zone. Bigger score:${c.reset}`));
-    lines.push(bLine(`      ${c.green}far${c.reset}${c.dim}  ·····  ${c.reset}${c.yellow}close${c.reset}${c.dim}  ·····  ${c.reset}${c.red}${c.bold}SQUASH${c.reset}`));
+    lines.push(bLine(`${c.dim}    More danger, more points. Hackers like danger.${c.reset}`));
+    lines.push(bLine(`      ${c.red}${c.bold}DANGER 3x${c.reset}${c.dim}  ·····  ${c.reset}${c.yellow}close 2x${c.reset}${c.dim}  ·····  ${c.reset}${c.green}safe 1x${c.reset}`));
     lines.push(bLine(""));
-    lines.push(bLine(`${c.dim}    Let them reach you and they corrupt memory. Lose your integrity, crash.${c.reset}`));
+    lines.push(bLine(`${c.dim}    Let the wire reach a bug and it breaches your stack. Lose integrity, crash.${c.reset}`));
     lines.push(bLine(""));
     lines.push(bLine(`${c.dim}    Fill the ${c.magenta}surge${c.dim} meter. Fumigate everything.${c.reset}`));
     lines.push(bLine(""));

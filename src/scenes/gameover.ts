@@ -30,9 +30,7 @@ function wrapFact(text: string, maxWidth: number, maxLines: number): string[] {
   return result;
 }
 
-type SubmitStatus = "idle" | "submitting" | "submitted" | "failed";
-
-function renderScreen(state: GameState, inputBuffer: string, fact: string, authEmail: string | null = null, hasAuth = false, submitStatus: SubmitStatus = "idle"): string {
+function renderScreen(state: GameState, inputBuffer: string, fact: string, bestScore: number): string {
   const { compact, width, rows } = layout();
   const inner = width;
   const lines: string[] = [];
@@ -42,10 +40,6 @@ function renderScreen(state: GameState, inputBuffer: string, fact: string, authE
   const jackWord = renderTitleWord(
     "jack".startsWith(input) ? inputBuffer : "",
     "jack"
-  );
-  const boardWord = renderTitleWord(
-    "board".startsWith(input) ? inputBuffer : "",
-    "board"
   );
   const quitWord = renderTitleWord(
     "quit".startsWith(input) ? inputBuffer : "",
@@ -58,18 +52,24 @@ function renderScreen(state: GameState, inputBuffer: string, fact: string, authE
 
   const dbar = decorBar();
 
-  // Fixed content: top(1) + stats(1) + fact(1-3) + blank(2) + menu(3) + blank(1) + auth(0-1) + prompt(1)
-  const hasAuthLine = !!(authEmail || hasAuth);
-  const fixedLines = 1 + 1 + factLines.length + 2 + 3 + 1 + (hasAuthLine ? 1 : 0) + 1;
+  // Fixed content: top(1) + stats(1) + fact(1-3) + blank(2) + menu(2) + blank(1) + prompt(1)
+  const fixedLines = 1 + 1 + factLines.length + 2 + 2 + 1 + 1;
   const spacerBudget = rows - fixedLines;
   const spacious = spacerBudget >= 8;
 
   lines.push(bDiv("═", "╔", "╗", rc));
 
+  const isNewBest = bestScore > 0 && state.score >= bestScore;
+
   if (compact) {
     lines.push(bLine(`${c.dim}${center("stack overflow.", inner)}${c.reset}`, rc));
     const stats = `wave ${state.wave + 1} · ${state.score.toLocaleString()} pts · streak ${state.maxCombo}`;
     lines.push(bLine(`${c.dim}${center(stats, inner)}${c.reset}`, rc));
+    if (isNewBest) {
+      lines.push(bLine(`${c.yellow}${center("new high score!", inner)}${c.reset}`, rc));
+    } else if (bestScore > 0) {
+      lines.push(bLine(`${c.dim}${center(`best: ${bestScore.toLocaleString()}`, inner)}${c.reset}`, rc));
+    }
   } else {
     if (spacious) lines.push(bLine("", rc));
     lines.push(bLine(dbar, rc));
@@ -81,6 +81,11 @@ function renderScreen(state: GameState, inputBuffer: string, fact: string, authE
     if (spacious) lines.push(bLine("", rc));
     const statsText = `wave ${state.wave + 1}  ·  ${state.score.toLocaleString()} pts  ·  streak ${state.maxCombo}`;
     lines.push(bLine(`${c.dim}${center(statsText, inner)}${c.reset}`, rc));
+    if (isNewBest) {
+      lines.push(bLine(`${c.yellow}${c.bold}${center("NEW HIGH SCORE!", inner)}${c.reset}`, rc));
+    } else if (bestScore > 0) {
+      lines.push(bLine(`${c.dim}${center(`best: ${bestScore.toLocaleString()}`, inner)}${c.reset}`, rc));
+    }
   }
 
   lines.push(bLine("", rc));
@@ -90,23 +95,8 @@ function renderScreen(state: GameState, inputBuffer: string, fact: string, authE
   lines.push(bLine("", rc));
   if (!compact && spacerBudget >= 6) lines.push(bLine(dbar, rc));
   if (!compact && spacerBudget >= 6) lines.push(bLine("", rc));
-  lines.push(bLine(`  ${c.dim}type${c.reset} ${jackWord}  ${c.dim}to jack back in${c.reset}`, rc));
-  lines.push(bLine(`  ${c.dim}type${c.reset} ${boardWord} ${c.dim}for leaderboard${c.reset}`, rc));
-  lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord}  ${c.dim}to walk away${c.reset}`, rc));
-  lines.push(bLine("", rc));
-
-  // Auth/leaderboard status (web only)
-  if (authEmail && submitStatus === "submitted") {
-    lines.push(bLine(`${c.green}  score submitted!${c.reset} ${c.dim}· ${c.reset}${c.green}${authEmail}${c.reset}`, rc));
-  } else if (authEmail && submitStatus === "submitting") {
-    lines.push(bLine(`${c.dim}  submitting score... · ${c.reset}${c.green}${authEmail}${c.reset}`, rc));
-  } else if (authEmail && submitStatus === "failed") {
-    lines.push(bLine(`${c.red}  submit failed${c.reset} ${c.dim}· ${c.reset}${c.green}${authEmail}${c.reset}`, rc));
-  } else if (authEmail) {
-    lines.push(bLine(`${c.dim}  logged in as ${c.reset}${c.green}${authEmail}${c.reset}`, rc));
-  } else if (hasAuth) {
-    lines.push(bLine(`${c.dim}  sign in at ${c.reset}${c.cyan}auth.ljs.app${c.reset}${c.dim} to submit scores${c.reset}`, rc));
-  }
+  lines.push(bLine(`  ${c.dim}type${c.reset} ${jackWord} ${c.dim}to jack back in${c.reset}`, rc));
+  lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord} ${c.dim}to walk away${c.reset}`, rc));
 
   padToRows(lines, rc);
   lines.push(menuPromptBorder(inputBuffer, rc));
@@ -137,21 +127,23 @@ export function enter(ctx: SceneContext, data?: unknown): void {
   const state = data as GameState;
   const fact = getRandomFact();
   let inputBuffer = "";
-  const authEmail = ctx.authUser?.email ?? null;
-  const hasAuth = ctx.loginUrl !== null;
-  let submitStatus: SubmitStatus = "idle";
 
-  const render = () => ctx.writeFrame(renderScreen(state, inputBuffer, fact, authEmail, hasAuth, submitStatus));
+  // Get previous best before saving current score
+  const localScores = ctx.getLocalScores();
+  const bestScore = localScores.length > 0 ? localScores[0]!.score : 0;
+
+  // Save the score locally
+  if (state.score > 0) {
+    ctx.saveLocalScore(state.score, state.wave, state.kills, state.maxCombo);
+  }
+
+  const render = () => ctx.writeFrame(renderScreen(state, inputBuffer, fact, bestScore));
   render();
 
-  // Auto-submit score if authenticated and score > 0
-  if (authEmail && state.score > 0 && hasAuth) {
-    submitStatus = "submitting";
-    render();
-    void submitScore(state, authEmail).then((ok) => {
-      submitStatus = ok ? "submitted" : "failed";
-      render();
-    });
+  // Auto-submit score if authenticated and score > 0 (web only)
+  const authEmail = ctx.authUser?.email ?? null;
+  if (authEmail && state.score > 0 && ctx.loginUrl !== null) {
+    void submitScore(state, authEmail);
   }
 
   handler = (key: string) => {
@@ -172,14 +164,12 @@ export function enter(ctx: SceneContext, data?: unknown): void {
     }
 
     if (key.length === 1 && key >= " " && key <= "~") {
-      if (!matchesAnyOption(inputBuffer, key, ["jack", "board", "quit"])) return;
+      if (!matchesAnyOption(inputBuffer, key, ["jack", "quit"])) return;
       inputBuffer += key;
       render();
 
       if (inputBuffer.toLowerCase() === "jack") {
         ctx.navigate("game");
-      } else if (inputBuffer.toLowerCase() === "board") {
-        ctx.navigate("leaderboard", { from: "gameover", lastScore: state.score, submitted: submitStatus === "submitted" });
       } else if (inputBuffer.toLowerCase() === "quit") {
         ctx.exit();
       }

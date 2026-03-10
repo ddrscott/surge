@@ -12,7 +12,6 @@ import * as helpScene from "../../src/scenes/help.js";
 import * as gameScene from "../../src/scenes/game.js";
 import * as gameoverScene from "../../src/scenes/gameover.js";
 import * as pauseScene from "../../src/scenes/pause.js";
-import * as leaderboardScene from "../../src/scenes/leaderboard.js";
 
 // @ts-ignore - Vite raw import
 import bugsRaw from "../../bugs.txt?raw";
@@ -122,7 +121,9 @@ const initialSize = pickTier();
 const term = new Terminal({
   cursorBlink: false,
   cursorStyle: "block",
-  fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Menlo', monospace",
+  customGlyphs: true,
+  rescaleOverlappingGlyphs: true,
+  fontFamily: "'Roboto Mono', 'Input Mono', 'Menlo', monospace",
   fontSize: initialSize.fontSize,
   cols: initialSize.cols,
   rows: initialSize.rows,
@@ -217,7 +218,6 @@ const scenes = {
   game: gameScene,
   gameover: gameoverScene,
   pause: pauseScene,
-  leaderboard: leaderboardScene,
 } as const;
 
 type SceneName = keyof typeof scenes;
@@ -257,6 +257,8 @@ const ctx: SceneContext = {
   get authUser() { return authUser; },
   get loginUrl() { return getLoginUrl(); },
   logout: () => { void doLogout(); },
+  getLocalScores: () => [],
+  saveLocalScore: () => {},
 };
 
 // --- Start (fetch auth state, then show title) ---

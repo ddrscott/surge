@@ -11,7 +11,7 @@
   <script defer data-domain="surge.ljs.app" src="https://plausible.ljs.app/js/script.outbound-links.pageview-props.tagged-events.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -21,28 +21,42 @@
       --cyan: #33ffff;
       --dim: #666666;
       --green: #33ff33;
+      --yellow: #ffff33;
+      --red: #ff3333;
+      --magenta: #ff33ff;
       --border: #222;
     }
 
     html, body {
       background: var(--bg);
       color: var(--fg);
-      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-      height: 100dvh;
-      overflow: hidden;
+      font-family: 'Roboto Mono', 'Input Mono', 'Menlo', monospace;
+      min-height: 100dvh;
       touch-action: manipulation;
       -webkit-overflow-scrolling: touch;
+    }
+
+    /* Lock the game viewport to screen height */
+    .game-viewport {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100dvh;
+      overflow: hidden;
     }
 
     body {
       display: flex;
       flex-direction: column;
       align-items: center;
+    }
+
+    .game-viewport {
       /* Safe area insets for notch/toolbar */
       padding:
         env(safe-area-inset-top, 0)
         env(safe-area-inset-right, 0)
-        env(safe-area-inset-bottom, 0)
+        0
         env(safe-area-inset-left, 0);
     }
 
@@ -52,8 +66,8 @@
       align-items: center;
       justify-content: space-between;
       width: 100%;
-      padding: 0.25rem 0.75rem;
-      font-size: 0.6875rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.8125rem;
       color: var(--dim);
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
@@ -73,7 +87,7 @@
       color: var(--cyan);
       font-weight: 700;
       letter-spacing: 0.15em;
-      font-size: 0.75rem;
+      font-size: 0.875rem;
     }
 
     .hud-auth {
@@ -106,16 +120,20 @@
 
     /* ── Bottom bar ── */
     .hud-bottom {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 1.5rem;
       width: 100%;
-      padding: 0.2rem 0.75rem;
-      font-size: 0.625rem;
+      padding: 0.4rem 1rem;
+      font-size: 0.8125rem;
       color: var(--dim);
       border-top: 1px solid var(--border);
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .hud-controls {
+      display: flex;
+      gap: 1.25rem;
     }
 
     .hud-bottom kbd {
@@ -124,40 +142,147 @@
       font-size: inherit;
     }
 
+    .hud-scores {
+      display: flex;
+      gap: 1.25rem;
+      font-size: 0.75rem;
+    }
+
+    .hud-scores .rank { color: var(--dim); }
+    .hud-scores .name { color: var(--fg); }
+    .hud-scores .pts { color: var(--cyan); }
+
     /* xterm overrides */
     .xterm-viewport { overflow: hidden !important; }
     .xterm-screen { margin: 0 auto; }
+
+    /* ── Below-fold guide ── */
+    .guide {
+      width: 100%;
+      max-width: 640px;
+      padding: 2rem 1.5rem 3rem;
+    }
+
+    .guide h2 {
+      color: var(--cyan);
+      font-size: 0.8125rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1.25rem;
+    }
+
+    .guide-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 500px) {
+      .guide-grid { grid-template-columns: 1fr; }
+    }
+
+    .tip {
+      font-size: 0.8125rem;
+      line-height: 1.6;
+    }
+
+    .tip .label {
+      color: var(--fg);
+      font-weight: 700;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+
+    .tip .detail {
+      color: var(--dim);
+    }
+
+    .tip .hl { color: var(--cyan); }
+    .tip .red { color: var(--red); }
+    .tip .green { color: var(--green); }
+    .tip .yellow { color: var(--yellow); }
+    .tip .magenta { color: var(--magenta); }
   </style>
 </head>
 <body>
-  <div class="hud-top">
-    <a href="/">&#9664; surge.ljs.app</a>
-    <span class="hud-title">SURGE</span>
-    <span class="hud-auth" id="play-auth-bar"></span>
+  <div class="game-viewport">
+    <div class="hud-top">
+      <a href="/">&#9664; surge.ljs.app</a>
+      <span class="hud-title">SURGE</span>
+      <span class="hud-auth" id="play-auth-bar"></span>
+    </div>
+
+    <div id="terminal-wrap">
+      <div id="terminal"></div>
+    </div>
+
+    <div class="hud-bottom">
+      <div class="hud-controls">
+        <span><kbd>Esc</kbd> pause</span>
+        <span><kbd>Backspace</kbd> correct</span>
+      </div>
+      <div class="hud-scores" id="hud-scores"></div>
+    </div>
   </div>
 
-  <div id="terminal-wrap">
-    <div id="terminal"></div>
-  </div>
-
-  <div class="hud-bottom">
-    <span>type bug names to kill them</span>
-    <span><kbd>Esc</kbd> pause</span>
-    <span><kbd>Backspace</kbd> correct</span>
+  <div class="guide">
+    <h2>How to Play</h2>
+    <div class="guide-grid">
+      <div class="tip">
+        <span class="label">Risk = Reward</span>
+        <span class="detail">More danger, more points. Hackers like danger. <span class="red">danger 3x</span> <span class="hl">&middot;&middot;&middot;</span> <span class="yellow">close 2x</span> <span class="hl">&middot;&middot;&middot;</span> <span class="green">safe 1x</span>.</span>
+      </div>
+      <div class="tip">
+        <span class="label">Combos</span>
+        <span class="detail">Chain kills without missing. Every 5 kills boosts your multiplier. One miss resets it.</span>
+      </div>
+      <div class="tip">
+        <span class="label">Power-ups</span>
+        <span class="detail"><span class="magenta">patch</span> <span class="magenta">fix</span> = heal &nbsp; <span class="magenta">freeze</span> = slow bugs &nbsp; <span class="magenta">optimize</span> = 2x score. They move fast.</span>
+      </div>
+      <div class="tip">
+        <span class="label">Surge Meter</span>
+        <span class="detail">Kills fill the <span class="hl">surge</span> bar. When full, type <span class="hl">surge</span> to wipe the screen.</span>
+      </div>
+      <div class="tip">
+        <span class="label">Typing</span>
+        <span class="detail">Start typing any visible bug name to lock on. <kbd>Backspace</kbd> to correct. <kbd>Esc</kbd> to cancel.</span>
+      </div>
+      <div class="tip">
+        <span class="label">Waves</span>
+        <span class="detail">Each wave brings faster, more numerous bugs. Rest between waves to catch your breath.</span>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="./main.ts"></script>
   <script>
-    // Check auth and show status in play page HUD
+    // Check auth and show status
     fetch("/api/auth/me")
       .then(function(r) { return r.json(); })
       .then(function(data) {
         var bar = document.getElementById("play-auth-bar");
         if (data.authenticated && data.email) {
-          bar.innerHTML = '<span class="user">' + data.email + '</span>';
+          bar.innerHTML = '<span class="user">' + data.email + '</span> · <a href="/api/auth/logout" class="sign-in-link">sign out</a>';
         } else {
           bar.innerHTML = '<a href="/api/auth/login?returnTo=/play" class="sign-in-link">sign in</a>';
         }
+      })
+      .catch(function() {});
+
+    // Fetch top 3 scores for footer
+    fetch("/api/scores?limit=3")
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var el = document.getElementById("hud-scores");
+        if (!data.scores || !data.scores.length) return;
+        var html = "";
+        for (var i = 0; i < data.scores.length; i++) {
+          var s = data.scores[i];
+          html += '<span><span class="rank">#' + (i + 1) + '</span> <span class="name">' + s.displayName + '</span> <span class="pts">' + s.score.toLocaleString() + '</span></span>';
+        }
+        el.innerHTML = html;
       })
       .catch(function() {});
   </script>

@@ -66,8 +66,8 @@ export function bLine(content: string, color = c.cyan): string {
 
 /** Create a full-width divider with box corners */
 export function bDiv(fill: string, left: string, right: string, color = c.cyan): string {
-  const { width } = layout();
-  return `${color}${left}${fill.repeat(width)}${right}${c.reset}`;
+  const { width, rightCol } = layout();
+  return `${color}${left}${fill.repeat(width)}\x1b[${rightCol}G${right}${c.reset}`;
 }
 
 /** Decorative bar that scales to terminal width */
@@ -133,8 +133,9 @@ export function menuPromptBorder(input: string, borderColor = c.cyan): string {
     ? `${c.dim}${prompt}${c.reset}${c.bold}${c.cyan}${input}${c.reset}${" ".repeat(padLen + 1)}`
     : `${c.dim}${prompt}${c.reset}${" ".repeat(padLen + 1)}`;
   const bracketLen = Math.max(MIN_PROMPT, contentLen) + 2; // [ ... ]
+  const { rightCol } = layout();
   const fillLen = Math.max(0, width - bracketLen - 2 + 2); // ╚ + ╝
-  return `${borderColor}╚[${c.reset}${inputDisplay}${borderColor}]${"═".repeat(fillLen)}╝${c.reset}`;
+  return `${borderColor}╚[${c.reset}${inputDisplay}${borderColor}]${"═".repeat(fillLen)}\x1b[${rightCol}G╝${c.reset}`;
 }
 
 /** ANSI sequence to park cursor at the prompt input position on the bottom row */

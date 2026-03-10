@@ -240,7 +240,7 @@ function renderDeath(enemy: Enemy, tick: number, fieldWidth: number): string {
 
 /** Build the bottom ╚[ $ rm input█ ]═══[score]══[combo]╝ border */
 function bottomBorder(state: GameState, target: Enemy | null): string {
-  const { width } = layout();
+  const { width, rightCol } = layout();
   const input = state.inputBuffer;
   const surgeReady = state.surgeReady;
 
@@ -279,12 +279,11 @@ function bottomBorder(state: GameState, target: Enemy | null): string {
   const fillTotal = Math.max(0, width - fixedLen + 2);
 
   const leftPart = `${c.cyan}╚[${c.reset}${inputDisplay}${c.cyan}]`;
-  const rightPart =
+  const scorePart =
     `[${c.reset}${c.bold}${c.yellow}${scoreLabel}${c.reset}${c.cyan}]` +
-    (comboLabel ? `[${c.reset}${c.bold}${c.yellow}${comboLabel}${c.reset}${c.cyan}]` : "") +
-    `╝${c.reset}`;
+    (comboLabel ? `[${c.reset}${c.bold}${c.yellow}${comboLabel}${c.reset}${c.cyan}]` : "");
 
-  return `${leftPart}${"═".repeat(fillTotal)}${rightPart}`;
+  return `${leftPart}${"═".repeat(fillTotal)}${scorePart}\x1b[${rightCol}G${c.cyan}╝${c.reset}`;
 }
 
 function render(state: GameState): string {
@@ -326,15 +325,12 @@ function render(state: GameState): string {
     : `${c.red}${c.bold}|${c.reset}`;
   const wallPad = " ".repeat(Math.max(0, wallMax - wallVisual));
 
-  // Status line (standard only)
+  // Status line (standard only) — shows active power-up effects
   if (!compact) {
     const effects: string[] = [];
     if (state.doubleScoreUntil > state.tick) effects.push(`${c.magenta}${c.bold}2x SCORE${c.reset}`);
     if (state.slowUntil > state.tick) effects.push(`${c.magenta}${c.bold}FREEZE${c.reset}`);
-    const statusHint = effects.length > 0
-      ? `  ${effects.join("  ")}`
-      : `${c.dim}type the word to${c.reset} ${c.red}${c.bold}SQUASH${c.reset}`;
-    lines.push(bLine(`  ${statusHint}`));
+    lines.push(bLine(effects.length > 0 ? `  ${effects.join("  ")}` : ""));
   }
 
   // Build lane map

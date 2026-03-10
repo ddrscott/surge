@@ -1,12 +1,12 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { homedir } from "node:os";
 import * as titleScene from "./scenes/title.js";
 import * as helpScene from "./scenes/help.js";
 import * as gameScene from "./scenes/game.js";
 import * as gameoverScene from "./scenes/gameover.js";
 import * as pauseScene from "./scenes/pause.js";
-import * as leaderboardScene from "./scenes/leaderboard.js";
-import type { SceneContext } from "./scenes/types.js";
+import type { SceneContext, LocalScore } from "./scenes/types.js";
 import { setTermSize } from "./render.js";
 import { initWords } from "./game/words.js";
 import { initFacts } from "./game/facts.js";
@@ -82,7 +82,6 @@ const scenes = {
   game: gameScene,
   gameover: gameoverScene,
   pause: pauseScene,
-  leaderboard: leaderboardScene,
 } as const;
 
 type SceneName = keyof typeof scenes;
@@ -102,6 +101,35 @@ function exit() {
   process.exit(0);
 }
 
+// --- Local high scores (CLI) ---
+const scoresDir = join(homedir(), ".surge");
+const scoresFile = join(scoresDir, "scores.json");
+const MAX_LOCAL_SCORES = 10;
+
+function getLocalScores(): LocalScore[] {
+  try {
+    if (!existsSync(scoresFile)) return [];
+    const raw = readFileSync(scoresFile, "utf-8");
+    const data: unknown = JSON.parse(raw);
+    if (!Array.isArray(data)) return [];
+    return data as LocalScore[];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalScore(score: number, wave: number, kills: number, maxCombo: number): void {
+  try {
+    if (!existsSync(scoresDir)) mkdirSync(scoresDir, { recursive: true });
+    const scores = getLocalScores();
+    scores.push({ score, wave, kills, maxCombo, date: new Date().toISOString() });
+    scores.sort((a, b) => b.score - a.score);
+    writeFileSync(scoresFile, JSON.stringify(scores.slice(0, MAX_LOCAL_SCORES), null, 2));
+  } catch {
+    // Silent failure — don't crash the game over a high score file
+  }
+}
+
 const ctx: SceneContext = {
   writeFrame,
   stdin: process.stdin,
@@ -111,6 +139,8 @@ const ctx: SceneContext = {
   authUser: null,
   loginUrl: null,
   logout: () => {},
+  getLocalScores,
+  saveLocalScore,
 };
 
 // Setup terminal

@@ -19,6 +19,7 @@
       --cyan: #33ffff;
       --red: #ff3333;
       --green: #33ff33;
+      --yellow: #ffff33;
       --dim: #666666;
       --border: #222;
     }
@@ -162,6 +163,47 @@
       padding: 1rem 0;
     }
 
+    .leaderboard-table {
+      width: 100%;
+      font-size: 0.8125rem;
+      margin-top: 1rem;
+    }
+
+    .leaderboard-table .row {
+      display: flex;
+      padding: 0.3rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .leaderboard-table .row:last-child {
+      border-bottom: none;
+    }
+
+    .leaderboard-table .rank {
+      width: 2.5rem;
+      color: var(--dim);
+      text-align: right;
+      padding-right: 0.75rem;
+    }
+
+    .leaderboard-table .rank.top { color: var(--yellow); }
+
+    .leaderboard-table .name {
+      flex: 1;
+    }
+
+    .leaderboard-table .score {
+      color: var(--cyan);
+      text-align: right;
+    }
+
+    .leaderboard-empty {
+      color: var(--dim);
+      font-size: 0.8125rem;
+      text-align: center;
+      padding: 1rem 0;
+    }
+
     /* ── Footer ── */
     footer {
       text-align: center;
@@ -210,16 +252,19 @@
     <section class="narrative">
       <p>They came through the memory bus at 3 AM. <span class="red">Red wires</span> threading through the stack, dragging names you almost recognize. <span class="dim">Weevil. Mantis. Botfly.</span></p>
       <p>Your terminal is the last wall. The only weapon is the one under your fingers.</p>
-      <p><span class="highlight">Name them and they die.</span> Hesitate and they breach.</p>
+      <p>All bugs must be eradicated. <span class="highlight"><code>rm</code> them before they <code>rm</code> you.</span></p>
       <p>Each wave hits harder. The wires move faster. Your combo climbs &mdash; or it doesn't. There are no second chances, only <span class="green">faster fingers</span>.</p>
     </section>
 
     <hr class="divider" />
 
-    <p class="leaderboard-cta">
-      <a href="/api/auth/login?returnTo=/play" class="sign-in-link">Sign in</a> to claim your spot on the leaderboard.
-    </p>
-    <div id="auth-bar" class="auth-bar"></div>
+    <section>
+      <h2>Leaderboard</h2>
+      <div id="leaderboard"></div>
+      <p class="leaderboard-cta" id="leaderboard-cta">
+        <a href="/api/auth/login?returnTo=/play" class="sign-in-link">Sign in</a> to claim your spot.
+      </p>
+    </section>
 
     <hr class="divider" />
 
@@ -239,16 +284,38 @@
   </div>
 
   <script>
-    // Check auth and show status
+    // Check auth and swap CTA accordingly
     fetch("/api/auth/me")
       .then(r => r.json())
       .then(data => {
-        const bar = document.getElementById("auth-bar");
+        const cta = document.getElementById("leaderboard-cta");
         if (data.authenticated && data.email) {
-          bar.innerHTML = 'signed in as <span class="user">' + data.email + '</span>';
-        } else {
-          bar.innerHTML = '<a href="/api/auth/login?returnTo=/play" class="sign-in-link">sign in to track your scores</a>';
+          cta.innerHTML = '<span class="user">' + data.email + '</span> &mdash; <a href="/api/auth/logout" class="sign-in-link">sign out</a>';
         }
+      })
+      .catch(() => {});
+
+    // Fetch leaderboard
+    fetch("/api/scores?limit=10")
+      .then(r => r.json())
+      .then(data => {
+        const el = document.getElementById("leaderboard");
+        if (!data.scores || !data.scores.length) {
+          el.innerHTML = '<p class="leaderboard-empty">No scores yet. Be the first.</p>';
+          return;
+        }
+        let html = '<div class="leaderboard-table">';
+        for (let i = 0; i < data.scores.length; i++) {
+          const s = data.scores[i];
+          const topClass = i < 3 ? " top" : "";
+          html += '<div class="row">';
+          html += '<span class="rank' + topClass + '">' + (i + 1) + '.</span>';
+          html += '<span class="name">' + s.displayName + '</span>';
+          html += '<span class="score">' + s.score.toLocaleString() + '</span>';
+          html += '</div>';
+        }
+        html += '</div>';
+        el.innerHTML = html;
       })
       .catch(() => {});
   </script>

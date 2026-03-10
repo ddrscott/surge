@@ -9,7 +9,7 @@ function center(text: string, w: number): string {
   return " ".repeat(pad) + text;
 }
 
-function renderScreen(titleBuffer: string, authEmail: string | null = null, hasAuth = false): string {
+function renderScreen(titleBuffer: string, bestScore: number): string {
   const { compact, width, rows } = layout();
   const inner = width; // inner width between ║ borders
   const input = titleBuffer.toLowerCase();
@@ -20,10 +20,6 @@ function renderScreen(titleBuffer: string, authEmail: string | null = null, hasA
   const helpWord = renderTitleWord(
     "help".startsWith(input) ? titleBuffer : "",
     "help"
-  );
-  const boardWord = renderTitleWord(
-    "board".startsWith(input) ? titleBuffer : "",
-    "board"
   );
   const quitWord = renderTitleWord(
     "quit".startsWith(input) ? titleBuffer : "",
@@ -44,17 +40,16 @@ function renderScreen(titleBuffer: string, authEmail: string | null = null, hasA
   ];
   const bannerWidth = banner[0]!.length; // 41
 
-  // Fixed content: top border(1) + menu(4) + blank(1) + auth(0-1) + prompt(1) = 7-8
+  // Fixed content: top border(1) + menu(3) + blank(1) + prompt(1) = 6
   // Budget remaining rows for banner + taglines + spacers
-  const hasAuthLine = !!(authEmail || hasAuth);
-  const fixedLines = 1 + 4 + 1 + (hasAuthLine ? 1 : 0) + 1; // top + menu + blank + auth + prompt
+  const fixedLines = 1 + 3 + 1 + 1;
   const budgetForBanner = rows - fixedLines;
 
   if (compact) {
     const title = "S U R G E";
     lines.push(bLine(`${center(title, inner).replace(title, `${c.cyan}${c.bold}${title}${c.reset}`)}`));
     lines.push(bLine(`${c.dim}${center("Bugs in memory.", inner)}${c.reset}`));
-    lines.push(bLine(`${c.dim}${center("Type to squash.", inner)}${c.reset}`));
+    lines.push(bLine(`${c.dim}${center("rm them before they rm you.", inner)}${c.reset}`));
   } else if (inner >= bannerWidth + 2 && budgetForBanner >= 12) {
     // Full ASCII banner with breathing room: 5 banner + 3 taglines + 4 spacers/dbars = 12 min
     const spacious = budgetForBanner >= 16;
@@ -69,8 +64,8 @@ function renderScreen(titleBuffer: string, authEmail: string | null = null, hasA
     lines.push(bLine(dbar));
     lines.push(bLine(""));
     lines.push(bLine(`${c.dim}${center("The system is infested.", inner)}${c.reset}`));
-    lines.push(bLine(`${c.dim}${center("Bugs are crawling through memory.", inner)}${c.reset}`));
-    lines.push(bLine(`${c.dim}${center("Name them to squash them.", inner)}${c.reset}`));
+    lines.push(bLine(`${c.dim}${center("Bugs are lodged in memory.", inner)}${c.reset}`));
+    lines.push(bLine(`${c.dim}${center("rm them before they rm you.", inner)}${c.reset}`));
   } else if (!compact) {
     // Medium: text title instead of ASCII art
     lines.push(bLine(dbar));
@@ -80,8 +75,8 @@ function renderScreen(titleBuffer: string, authEmail: string | null = null, hasA
     lines.push(bLine(""));
     lines.push(bLine(dbar));
     lines.push(bLine(`${c.dim}${center("The system is infested.", inner)}${c.reset}`));
-    lines.push(bLine(`${c.dim}${center("Bugs are crawling through memory.", inner)}${c.reset}`));
-    lines.push(bLine(`${c.dim}${center("Name them to squash them.", inner)}${c.reset}`));
+    lines.push(bLine(`${c.dim}${center("Bugs are lodged in memory.", inner)}${c.reset}`));
+    lines.push(bLine(`${c.dim}${center("rm them before they rm you.", inner)}${c.reset}`));
   }
 
   lines.push(bLine(""));
@@ -89,15 +84,10 @@ function renderScreen(titleBuffer: string, authEmail: string | null = null, hasA
   if (!compact && budgetForBanner >= 14) lines.push(bLine(""));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${surgeWord} ${c.dim}to jack in${c.reset}`));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${helpWord}  ${c.dim}for briefing${c.reset}`));
-  lines.push(bLine(`  ${c.dim}type${c.reset} ${boardWord} ${c.dim}for leaderboard${c.reset}`));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord}  ${c.dim}to walk away${c.reset}`));
-  lines.push(bLine(""));
-
-  // Auth status line (web only)
-  if (authEmail) {
-    lines.push(bLine(`${c.dim}  logged in as ${c.reset}${c.green}${authEmail}${c.reset}`));
-  } else if (hasAuth) {
-    lines.push(bLine(`${c.dim}  sign in at ${c.reset}${c.cyan}auth.ljs.app${c.reset}${c.dim} for leaderboards${c.reset}`));
+  if (bestScore > 0) {
+    lines.push(bLine(""));
+    lines.push(bLine(`${c.dim}  high score: ${c.reset}${c.cyan}${bestScore.toLocaleString()}${c.reset}`));
   }
 
   padToRows(lines);
@@ -108,10 +98,10 @@ function renderScreen(titleBuffer: string, authEmail: string | null = null, hasA
 
 export function enter(ctx: SceneContext): void {
   let titleBuffer = "";
-  const authEmail = ctx.authUser?.email ?? null;
-  const hasAuth = ctx.loginUrl !== null;
+  const localScores = ctx.getLocalScores();
+  const bestScore = localScores.length > 0 ? localScores[0]!.score : 0;
 
-  ctx.writeFrame(renderScreen(titleBuffer, authEmail, hasAuth));
+  ctx.writeFrame(renderScreen(titleBuffer, bestScore));
 
   handler = (key: string) => {
     if (key === "\x03") {
@@ -120,27 +110,25 @@ export function enter(ctx: SceneContext): void {
 
     if (key === "\x7f" || key === "\b") {
       titleBuffer = titleBuffer.slice(0, -1);
-      ctx.writeFrame(renderScreen(titleBuffer, authEmail, hasAuth));
+      ctx.writeFrame(renderScreen(titleBuffer, bestScore));
       return;
     }
 
     if (key === "\x1b") {
       titleBuffer = "";
-      ctx.writeFrame(renderScreen(titleBuffer, authEmail, hasAuth));
+      ctx.writeFrame(renderScreen(titleBuffer, bestScore));
       return;
     }
 
     if (key.length === 1 && key >= " " && key <= "~") {
-      if (!matchesAnyOption(titleBuffer, key, ["surge", "help", "board", "quit"])) return;
+      if (!matchesAnyOption(titleBuffer, key, ["surge", "help", "quit"])) return;
       titleBuffer += key;
-      ctx.writeFrame(renderScreen(titleBuffer, authEmail, hasAuth));
+      ctx.writeFrame(renderScreen(titleBuffer, bestScore));
 
       if (titleBuffer.toLowerCase() === "surge") {
         ctx.navigate("game");
       } else if (titleBuffer.toLowerCase() === "help") {
         ctx.navigate("help");
-      } else if (titleBuffer.toLowerCase() === "board") {
-        ctx.navigate("leaderboard", { from: "title" });
       } else if (titleBuffer.toLowerCase() === "quit") {
         ctx.exit();
       }
