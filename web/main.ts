@@ -43,28 +43,26 @@ function pickTier(): TermSize {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  // Character aspect ratio: height ≈ 2× width for monospace
-  const charRatio = 2.0;
+  // Character aspect ratio: width ≈ 0.6 × fontSize, height ≈ 1.2 × fontSize
+  const charWidthRatio = 0.6;
+  const charHeightRatio = 1.2;
 
   for (const tier of TIERS) {
-    // Calculate font size that would fit this tier in the viewport
-    // Leave a small margin (8px each side)
-    const margin = 16;
-    const availW = vw - margin;
-    const availH = vh - margin;
-
-    const fontByWidth = availW / (tier.cols * 0.6); // char width ≈ 0.6 × fontSize
-    const fontByHeight = availH / (tier.rows * charRatio * 0.6);
-    const fontSize = Math.floor(Math.min(fontByWidth, fontByHeight));
+    const fontByWidth = vw / (tier.cols * charWidthRatio);
+    const fontByHeight = vh / (tier.rows * charHeightRatio);
+    // On portrait mobile, size to width so virtual keyboard has room
+    const isPortrait = vh > vw;
+    const fontSize = Math.floor(isPortrait ? fontByWidth : Math.min(fontByWidth, fontByHeight));
 
     if (fontSize >= 10) {
       return { cols: tier.cols, rows: tier.rows, fontSize };
     }
   }
 
-  // Fallback: smallest tier with minimum font
+  // Fallback: smallest tier, fit to width
   const smallest = TIERS[TIERS.length - 1]!;
-  return { cols: smallest.cols, rows: smallest.rows, fontSize: 10 };
+  const fontSize = Math.max(10, Math.floor(vw / (smallest.cols * charWidthRatio)));
+  return { cols: smallest.cols, rows: smallest.rows, fontSize };
 }
 
 // --- Create terminal ---
