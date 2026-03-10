@@ -10,28 +10,35 @@ const TICK_MS = 50; // 20fps for smooth movement
 let handler: ((key: string) => void) | null = null;
 let tickInterval: ReturnType<typeof setInterval> | null = null;
 
-/** Render visible portion of an enemy word (scrolled into view) */
-function renderWord(enemy: Enemy, matched: number, zone: Zone, visible: number): string {
-  const visiblePart = enemy.word.slice(0, visible);
+/**
+ * Render the visible portion of an enemy word.
+ * startIdx/endIdx define which slice of the word is on-screen.
+ * matched is how many chars from the START of the full word the player has typed.
+ */
+function renderWord(enemy: Enemy, matched: number, zone: Zone, startIdx: number, endIdx: number): string {
+  const visiblePart = enemy.word.slice(startIdx, endIdx);
+
+  // How much of the player's typed prefix overlaps with visible chars
+  const visibleMatchCount = Math.min(visiblePart.length, Math.max(0, matched - startIdx));
 
   // Power-ups always render in magenta
   if (enemy.powerUp) {
-    if (matched === 0) {
+    if (visibleMatchCount === 0) {
       return `${c.magenta}${c.bold}${visiblePart}${c.reset}`;
     }
-    const matchedPart = visiblePart.slice(0, matched);
-    const remaining = visiblePart.slice(matched);
+    const matchedPart = visiblePart.slice(0, visibleMatchCount);
+    const remaining = visiblePart.slice(visibleMatchCount);
     return `${c.bgMagenta}${c.black}${c.bold}${matchedPart}${c.reset}${c.magenta}${c.bold}${remaining}${c.reset}`;
   }
 
   const color = zoneColor(zone);
 
-  if (matched === 0) {
+  if (visibleMatchCount === 0) {
     return `${color}${c.bold}${visiblePart}${c.reset}`;
   }
 
-  const matchedPart = visiblePart.slice(0, matched);
-  const remaining = visiblePart.slice(matched);
+  const matchedPart = visiblePart.slice(0, visibleMatchCount);
+  const remaining = visiblePart.slice(visibleMatchCount);
 
   let bgColor: string;
   if (zone === "CRITICAL") bgColor = c.bgBrightRed;
@@ -48,23 +55,41 @@ const POWER_UP_LABELS: Record<string, string> = {
   slow: "FREEZE",
 };
 
+/** Fraction of position travel spent scrolling the word in from the right */
+const SCROLL_IN = 0.15;
+
 /**
- * Word slides left-to-right. Returns [col, visibleSlice] where col is the
- * on-screen column and visibleSlice is the portion of the word that has
- * scrolled into view (clipped at the left border).
+ * Word scrolls in from the right border (tail first), then slides left.
+ * Returns col (on-screen column) and startIdx/endIdx (visible char range).
  */
-function wordLayout(enemy: Enemy): { col: number; slice: number } {
-  const maxCol = FIELD_WIDTH - enemy.word.length - 2;
-  // Left edge travels from -word.length (fully off-screen) to maxCol
-  const totalTravel = maxCol + enemy.word.length;
-  const leftEdge = -enemy.word.length + enemy.position * totalTravel;
-  if (leftEdge >= 0) {
-    // Fully on-screen — show entire word at its column
-    return { col: Math.min(Math.floor(leftEdge), maxCol), slice: enemy.word.length };
+function wordLayout(enemy: Enemy): { col: number; startIdx: number; endIdx: number } {
+  const len = enemy.word.length;
+  const maxCol = FIELD_WIDTH - len - 2; // leftmost col where full word fits near right
+
+  if (enemy.position <= 0) {
+    // Not yet on screen
+    return { col: FIELD_WIDTH, startIdx: len, endIdx: len };
   }
-  // Partially off-screen — clip to left border
-  const visible = Math.floor(enemy.word.length + leftEdge);
-  return { col: 0, slice: Math.max(0, visible) };
+
+  if (enemy.position < SCROLL_IN) {
+    // Phase 1: scrolling in from right. Tail chars appear first.
+    const progress = enemy.position / SCROLL_IN;
+    const visibleCount = Math.min(len, Math.max(1, Math.ceil(progress * len)));
+    const startIdx = len - visibleCount;
+    // Right-align the visible portion near the right edge
+    const col = maxCol + (len - visibleCount);
+    return { col, startIdx, endIdx: len };
+  }
+
+  // Phase 2: fully visible, sliding left toward danger
+  const slideProgress = (enemy.position - SCROLL_IN) / (1.0 - SCROLL_IN);
+  const col = Math.round(maxCol * (1 - slideProgress));
+  if (col < 0) {
+    // Word sliding off left edge
+    const clip = Math.min(len, -col);
+    return { col: 0, startIdx: clip, endIdx: len };
+  }
+  return { col, startIdx: 0, endIdx: len };
 }
 
 /** Render a dead enemy — fading ghost on its lane */
@@ -162,7 +187,7 @@ function render(state: GameState): string {
   ));
   lines.push(bDiv("═", "╠", "╣"));
 
-  // Wall — a barrier on the right that erodes with HP
+  // Wall — a barrier on the LEFT that erodes as HP drops
   const hpRatio = state.hp / state.maxHp;
   const wallWidth = Math.round(hpRatio * WALL_MAX);
   let wallColor: string;
@@ -172,17 +197,15 @@ function render(state: GameState): string {
   const wallStr = wallWidth > 0
     ? `${wallColor}${"█".repeat(wallWidth)}${c.reset}`
     : `${c.red}${c.bold}|${c.reset}`;
-  // Wall anchored to right border — erodes from left as HP drops
-  const wallCol = wallWidth > 0 ? RIGHT_COL - wallWidth : RIGHT_COL - 1;
 
-  // Zone markers — manual border + wall + status hints
+  // Zone markers — left border + wall + status hints
   const effects: string[] = [];
   if (state.doubleScoreUntil > state.tick) effects.push(`${c.magenta}${c.bold}2x SCORE${c.reset}`);
   if (state.slowUntil > state.tick) effects.push(`${c.magenta}${c.bold}FREEZE${c.reset}`);
   const statusHint = effects.length > 0
     ? `  ${effects.join("  ")}`
     : `${c.dim}type the word to${c.reset} ${c.red}${c.bold}SQUASH${c.reset}`;
-  lines.push(`${c.cyan}║${c.reset}  ${c.dim}·${c.reset}                                        ${statusHint}\x1b[K\x1b[${wallCol}G${wallStr}\x1b[${RIGHT_COL}G${c.cyan}║${c.reset}`);
+  lines.push(`${c.cyan}║${c.reset}${wallStr}  ${c.dim}·${c.reset}                                        ${statusHint}\x1b[K\x1b[${RIGHT_COL}G${c.cyan}║${c.reset}`);
 
   // Build lane map — living enemies take priority, dead ones shown as ghosts
   const liveLaneMap = new Map<number, Enemy>();
@@ -205,12 +228,12 @@ function render(state: GameState): string {
   for (let lane = 0; lane < NUM_LANES; lane++) {
     const alive = liveLaneMap.get(lane);
     if (alive) {
-      const { col, slice } = wordLayout(alive);
+      const { col, startIdx, endIdx } = wordLayout(alive);
       const zone = getZone(alive.position);
       const padding = " ".repeat(Math.max(0, col));
       const isTarget = target !== null && alive.id === target.id;
       const matched = isTarget ? inputLen : 0;
-      const wordStr = renderWord(alive, matched, zone, slice);
+      const wordStr = renderWord(alive, matched, zone, startIdx, endIdx);
 
       let marker: string;
       if (alive.powerUp) {
@@ -237,7 +260,7 @@ function render(state: GameState): string {
   for (let i = 0; i < NUM_LANES; i++) {
     const lineIdx = lines.length - NUM_LANES + i;
     const raw = lines[lineIdx]!;
-    lines[lineIdx] = `${c.cyan}║${c.reset}` + raw + `\x1b[K\x1b[${wallCol}G${wallStr}\x1b[${RIGHT_COL}G${c.cyan}║${c.reset}`;
+    lines[lineIdx] = `${c.cyan}║${c.reset}${wallStr}` + raw + `\x1b[K\x1b[${RIGHT_COL}G${c.cyan}║${c.reset}`;
   }
 
   lines.push(bDiv("─", "╟", "╢"));
