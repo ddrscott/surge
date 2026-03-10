@@ -13,3 +13,4 @@
 - [x] Integrate auth.ljs.app email authentication — shared parent domain cookie/token flow — [detail](work-queue/auth-integration.md)
 - [x] D1 leaderboard API — score submission with per-kill checksum validation — [detail](work-queue/leaderboard-api.md)
 - [x] Leaderboard UI scene — view global top scores from game over or title screen — [detail](work-queue/leaderboard-ui.md)
+- [x] Add editorial copy around the xterm terminal on `/play` page — [detail](work-queue/play-page-copy.md)

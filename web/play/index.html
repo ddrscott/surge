@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <title>SURGE — Play</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0a;
+      --fg: #c0c0c0;
+      --cyan: #33ffff;
+      --dim: #666666;
+      --green: #33ff33;
+      --border: #222;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      height: 100dvh;
+      overflow: hidden;
+      touch-action: manipulation;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      /* Safe area insets for notch/toolbar */
+      padding:
+        env(safe-area-inset-top, 0)
+        env(safe-area-inset-right, 0)
+        env(safe-area-inset-bottom, 0)
+        env(safe-area-inset-left, 0);
+    }
+
+    /* ── Top bar ── */
+    .hud-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.6875rem;
+      color: var(--dim);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .hud-top a {
+      color: var(--dim);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .hud-top a:hover {
+      color: var(--cyan);
+    }
+
+    .hud-title {
+      color: var(--cyan);
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      font-size: 0.75rem;
+    }
+
+    .hud-auth {
+      text-align: right;
+    }
+
+    .hud-auth .user {
+      color: var(--green);
+    }
+
+    .hud-auth .sign-in-link {
+      color: var(--dim);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .hud-auth .sign-in-link:hover {
+      color: var(--cyan);
+    }
+
+    /* ── Terminal area ── */
+    #terminal-wrap {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* ── Bottom bar ── */
+    .hud-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      width: 100%;
+      padding: 0.2rem 0.75rem;
+      font-size: 0.625rem;
+      color: var(--dim);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .hud-bottom kbd {
+      color: var(--fg);
+      font-family: inherit;
+      font-size: inherit;
+    }
+
+    /* xterm overrides */
+    .xterm-viewport { overflow: hidden !important; }
+    .xterm-screen { margin: 0 auto; }
+  </style>
+</head>
+<body>
+  <div class="hud-top">
+    <a href="/">&#9664; surge.ljs.app</a>
+    <span class="hud-title">SURGE</span>
+    <span class="hud-auth" id="play-auth-bar"></span>
+  </div>
+
+  <div id="terminal-wrap">
+    <div id="terminal"></div>
+  </div>
+
+  <div class="hud-bottom">
+    <span>type bug names to kill them</span>
+    <span><kbd>Esc</kbd> pause</span>
+    <span><kbd>Backspace</kbd> correct</span>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+  <script>
+    // Check auth and show status in play page HUD
+    fetch("/api/auth/me")
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var bar = document.getElementById("play-auth-bar");
+        if (data.authenticated && data.email) {
+          bar.innerHTML = '<span class="user">' + data.email + '</span>';
+        } else {
+          bar.innerHTML = '<a href="/api/auth/login?returnTo=/play" class="sign-in-link">sign in</a>';
+        }
+      })
+      .catch(function() {});
+  </script>
+</body>
+</html>
