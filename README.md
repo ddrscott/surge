@@ -20,12 +20,15 @@ A cyberpunk terminal typing game. Bugs are crawling through memory. Name them to
 
 ```sh
 npm install
-npm run dev     # run with tsx (development)
-npm run build   # compile TypeScript
-npm start       # run compiled output
+npm run dev         # terminal version (Node.js + tsx)
+npm run dev:web     # browser version (Vite + xterm.js)
+npm run build       # compile Node.js version
+npm run build:web   # build browser version to web/dist/
+npm run deploy      # build + deploy to Cloudflare Workers
 ```
 
-Requires Node.js 18+ and an interactive terminal (minimum 30 columns x 10 rows).
+**Terminal version** requires Node.js 18+ and an interactive terminal (min 30x10).
+**Browser version** runs at [surge.dataturd.com](https://surge.dataturd.com) or locally on `localhost:5173`.
 
 ## How to Play
 
@@ -83,24 +86,32 @@ The input prompt reads `$ rm bugname█` - you're typing terminal commands to de
 ## Architecture
 
 ```
-src/
-  main.ts           Entry point, terminal setup, scene navigation
-  types.ts          Core types: Enemy, GameState, Zone, WaveConfig
-  render.ts         Layout engine, ANSI colors, UI primitives
+src/                    Platform-agnostic game code (no Node.js deps except main.ts)
+  main.ts               Node.js entry point (terminal setup, fs reads)
+  types.ts              Core types: Enemy, GameState, Zone, WaveConfig
+  render.ts             Layout engine, ANSI colors, UI primitives
   game/
-    state.ts        Initial game state factory
-    logic.ts        Tick loop, spawning, input processing, scoring
-    words.ts        Dictionary loader, power-up definitions
-    facts.ts        Fun facts for game over screen
+    state.ts            Initial game state factory
+    logic.ts            Tick loop, spawning, input processing, scoring
+    words.ts            Dictionary loader, power-up definitions
+    facts.ts            Fun facts for game over screen
   scenes/
-    types.ts        SceneContext interface
-    title.ts        Title screen with ASCII logo
-    help.ts         Briefing / how-to-play
-    game.ts         Main gameplay rendering and input
-    pause.ts        Pause menu
-    gameover.ts     Final stats and fun fact display
-bugs.txt            340-word bug dictionary
-facts.txt           85 fun facts about bugs
+    types.ts            SceneContext + InputEmitter interfaces
+    title.ts            Title screen with ASCII logo
+    help.ts             Briefing / how-to-play
+    game.ts             Main gameplay rendering and input
+    pause.ts            Pause menu
+    gameover.ts         Final stats and fun fact display
+web/                    Browser build
+  index.html            Minimal dark page with xterm.js terminal
+  main.ts               Browser entry: bridges xterm.js to scene system
+  vite.config.ts        Vite build config
+worker/                 Cloudflare Worker
+  index.ts              Worker entry: serves static assets + API routes
+  tsconfig.json         Worker-specific TypeScript config
+bugs.txt                340-word bug dictionary
+facts.txt               85 fun facts about bugs
+wrangler.toml           Cloudflare Workers deployment config
 ```
 
 ### Scene System
@@ -176,6 +187,24 @@ The endgame vision: multiplayer Surge over SSH, styled as a BBS door game. Playe
 - **Ranked ladder**: ELO-based matchmaking by typing speed tier
 
 This preserves the single-player core while adding competitive pressure through shared resources and direct interference. The terminal-native approach means it works over any SSH connection - no browser, no client install, just `ssh surge.example.com`.
+
+## Deployment
+
+Surge runs as a Cloudflare Worker with static assets. The Worker serves the Vite-built web app and provides API routes for future features.
+
+```sh
+# First time: create the Worker
+npx wrangler deploy
+
+# Set up custom domain (surge.dataturd.com)
+# In CF dashboard: Workers & Pages > surge > Settings > Domains & Routes
+
+# Future: create D1 database for leaderboards
+npx wrangler d1 create surge-db
+# Then uncomment the [[d1_databases]] block in wrangler.toml
+```
+
+The Worker is D1-ready. Uncomment the database binding in `wrangler.toml` and add API routes in `worker/index.ts` for leaderboards, daily challenges, and multiplayer matchmaking.
 
 ## License
 

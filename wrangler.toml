@@ -1,0 +1,14 @@
+name = "surge"
+main = "./worker/index.ts"
+compatibility_date = "2025-06-01"
+
+[assets]
+directory = "./web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# Future: D1 leaderboard database
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "surge-db"
+# database_id = "<create with: npx wrangler d1 create surge-db>"

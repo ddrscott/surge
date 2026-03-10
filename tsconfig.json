@@ -43,5 +43,5 @@
     "moduleResolution": "nodenext",
     "esModuleInterop": true,
   },
-  "exclude": ["scripts", "dist", "web"]
+  "exclude": ["scripts", "dist", "web", "worker"]
 }

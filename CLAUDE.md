@@ -3,9 +3,12 @@
 ## Quick Reference
 
 ```sh
-npm run dev      # run with tsx (hot reload)
-npm run build    # validate data + compile TypeScript
-npm start        # run compiled dist/main.js
+npm run dev          # terminal version (Node.js + tsx)
+npm run dev:web      # browser version (Vite dev server)
+npm run build        # validate data + compile Node.js
+npm run build:web    # Vite build to web/dist/
+npm run deploy       # build:web + wrangler deploy
+npm start            # run compiled Node.js version
 ```
 
 ## Project Structure
@@ -111,10 +114,21 @@ Edit `bugs.txt` (one word per line, `#` comments allowed). Run `npm run build` t
 
 Edit `facts.txt` (one fact per line). Validated at build time for duplicates and length.
 
-## Future: Multiplayer
+## Deployment (Cloudflare Workers)
 
-The architecture is designed to support future multiplayer via SSH/xterm:
+- `wrangler.toml` - Worker config with static assets binding
+- `worker/index.ts` - Worker entry point (serves assets + API routes)
+- `worker/tsconfig.json` - Worker-specific TS config (uses `@cloudflare/workers-types`)
+- Static assets served from `web/dist/` via `ASSETS` binding
+- D1 database binding commented out, ready to uncomment when needed
+- API routes under `/api/*` go to Worker, everything else serves static assets
+
+## Future: Multiplayer & Leaderboards
+
+The architecture is designed to support multiplayer and global leaderboards:
 - Game state is a pure data structure (GameState), no global mutation
 - Rendering is a pure function of state (render returns a string)
 - Input processing returns results without side effects on rendering
 - Scene system can be instantiated per-connection
+- Worker is D1-ready for leaderboards (`wrangler.toml` has commented binding)
+- API route skeleton in `worker/index.ts` for scores, matchmaking
