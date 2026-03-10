@@ -1,5 +1,6 @@
 import type { Enemy, GameState, HitResult, PowerUpEffect, WaveConfig, Zone } from "../types.js";
 import { NUM_LANES } from "../types.js";
+import { FIELD_WIDTH } from "../render.js";
 import { getWord, getPowerUp } from "./words.js";
 
 const ZONE_THRESHOLDS = {
@@ -68,9 +69,14 @@ export function getZone(position: number): Zone {
   return "SAFE";
 }
 
-/** How many letters of an enemy's word are currently revealed */
+/** How many letters of an enemy's word have scrolled into view */
 export function revealedCount(enemy: Enemy): number {
-  return Math.min(enemy.word.length, Math.floor(enemy.position * enemy.word.length));
+  // Must match wordLayout() in game.ts — word slides from off-screen left
+  const maxCol = FIELD_WIDTH - enemy.word.length - 2;
+  const totalTravel = maxCol + enemy.word.length;
+  const leftEdge = -enemy.word.length + enemy.position * totalTravel;
+  if (leftEdge >= 0) return enemy.word.length;
+  return Math.max(0, Math.floor(enemy.word.length + leftEdge));
 }
 
 function spawnEnemy(state: GameState, config: WaveConfig): Enemy {

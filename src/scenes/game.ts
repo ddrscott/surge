@@ -2,7 +2,7 @@ import type { Enemy, GameState, Zone } from "../types.js";
 import { NUM_LANES } from "../types.js";
 import { c, bLine, bDiv, WIDTH, WALL_MAX, FIELD_WIDTH, RIGHT_COL, zoneColor, bar, hpColor } from "../render.js";
 import { createGame } from "../game/state.js";
-import { gameTick, processInput, findTarget, getZone, comboMultiplier, revealedCount } from "../game/logic.js";
+import { gameTick, processInput, findTarget, getZone, comboMultiplier } from "../game/logic.js";
 import type { SceneContext } from "./types.js";
 
 const TICK_MS = 50; // 20fps for smooth movement
@@ -10,26 +10,24 @@ const TICK_MS = 50; // 20fps for smooth movement
 let handler: ((key: string) => void) | null = null;
 let tickInterval: ReturnType<typeof setInterval> | null = null;
 
-/** Render a living enemy word — only revealed letters are shown (typewriter effect) */
-function renderWord(enemy: Enemy, matched: number, zone: Zone, revealed: number): string {
-  const visiblePart = enemy.word.slice(0, revealed);
-  const hiddenCount = enemy.word.length - revealed;
-  const hiddenPart = hiddenCount > 0 ? `${c.dim}${"·".repeat(hiddenCount)}${c.reset}` : "";
+/** Render visible portion of an enemy word (scrolled into view) */
+function renderWord(enemy: Enemy, matched: number, zone: Zone, visible: number): string {
+  const visiblePart = enemy.word.slice(0, visible);
 
   // Power-ups always render in magenta
   if (enemy.powerUp) {
     if (matched === 0) {
-      return `${c.magenta}${c.bold}${visiblePart}${c.reset}${hiddenPart}`;
+      return `${c.magenta}${c.bold}${visiblePart}${c.reset}`;
     }
     const matchedPart = visiblePart.slice(0, matched);
     const remaining = visiblePart.slice(matched);
-    return `${c.bgMagenta}${c.black}${c.bold}${matchedPart}${c.reset}${c.magenta}${c.bold}${remaining}${c.reset}${hiddenPart}`;
+    return `${c.bgMagenta}${c.black}${c.bold}${matchedPart}${c.reset}${c.magenta}${c.bold}${remaining}${c.reset}`;
   }
 
   const color = zoneColor(zone);
 
   if (matched === 0) {
-    return `${color}${c.bold}${visiblePart}${c.reset}${hiddenPart}`;
+    return `${color}${c.bold}${visiblePart}${c.reset}`;
   }
 
   const matchedPart = visiblePart.slice(0, matched);
@@ -40,7 +38,7 @@ function renderWord(enemy: Enemy, matched: number, zone: Zone, revealed: number)
   else if (zone === "RISKY") bgColor = c.bgYellow + c.black;
   else bgColor = c.bgGreen + c.black;
 
-  return `${bgColor}${c.bold}${matchedPart}${c.reset}${color}${c.bold}${remaining}${c.reset}${hiddenPart}`;
+  return `${bgColor}${c.bold}${matchedPart}${c.reset}${color}${c.bold}${remaining}${c.reset}`;
 }
 
 const POWER_UP_LABELS: Record<string, string> = {
@@ -50,15 +48,29 @@ const POWER_UP_LABELS: Record<string, string> = {
   slow: "FREEZE",
 };
 
-/** Fixed column where words appear (right-aligned in the field) */
-function wordCol(enemy: Enemy): number {
-  return Math.max(0, FIELD_WIDTH - enemy.word.length - 2);
+/**
+ * Word slides left-to-right. Returns [col, visibleSlice] where col is the
+ * on-screen column and visibleSlice is the portion of the word that has
+ * scrolled into view (clipped at the left border).
+ */
+function wordLayout(enemy: Enemy): { col: number; slice: number } {
+  const maxCol = FIELD_WIDTH - enemy.word.length - 2;
+  // Left edge travels from -word.length (fully off-screen) to maxCol
+  const totalTravel = maxCol + enemy.word.length;
+  const leftEdge = -enemy.word.length + enemy.position * totalTravel;
+  if (leftEdge >= 0) {
+    // Fully on-screen — show entire word at its column
+    return { col: Math.min(Math.floor(leftEdge), maxCol), slice: enemy.word.length };
+  }
+  // Partially off-screen — clip to left border
+  const visible = Math.floor(enemy.word.length + leftEdge);
+  return { col: 0, slice: Math.max(0, visible) };
 }
 
 /** Render a dead enemy — fading ghost on its lane */
 function renderDeath(enemy: Enemy, tick: number): string {
   const age = tick - enemy.killedAt;
-  const col = wordCol(enemy);
+  const { col } = wordLayout(enemy);
   const padding = " ".repeat(Math.max(0, col));
 
   if (enemy.killedZone === "MISSED") {
@@ -193,13 +205,12 @@ function render(state: GameState): string {
   for (let lane = 0; lane < NUM_LANES; lane++) {
     const alive = liveLaneMap.get(lane);
     if (alive) {
-      const col = wordCol(alive);
+      const { col, slice } = wordLayout(alive);
       const zone = getZone(alive.position);
-      const revealed = revealedCount(alive);
       const padding = " ".repeat(Math.max(0, col));
       const isTarget = target !== null && alive.id === target.id;
       const matched = isTarget ? inputLen : 0;
-      const wordStr = renderWord(alive, matched, zone, revealed);
+      const wordStr = renderWord(alive, matched, zone, slice);
 
       let marker: string;
       if (alive.powerUp) {
