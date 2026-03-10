@@ -27,6 +27,8 @@ export interface Enemy {
   powerUp: PowerUpEffect | null;
   /** Whether this enemy has already triggered hitstun (wire touch) */
   hitStunTriggered: boolean;
+  /** Whether damage was already applied for a missed enemy in grace period */
+  missedDamageApplied: boolean;
 }
 
 export type Zone = "SAFE" | "RISKY" | "CRITICAL" | "MISSED";

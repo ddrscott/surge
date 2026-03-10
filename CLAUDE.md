@@ -49,7 +49,7 @@ The game runs at 20 FPS. The render pipeline in `game.ts`:
 3. Lane rendering: one row per lane, showing live/dead enemies
 4. Wall stamp: ANSI cursor positioning (`\x1b[${col}G`) places wall on right side
 5. Creep overlay: red wires bleed through wall when HP < 30%
-6. Bottom border: `╚[ $ rm input█ ]═══[score][combo]╝`
+6. Bottom border: `╚[ $ rm input ]═══[score][combo]╝` (real cursor parked at prompt, no fake █)
 
 ### Three-Phase Enemy Rendering
 
@@ -94,6 +94,12 @@ Wall is on the RIGHT side. Lane lines are stamped with borders:
 - Bottom border score/combo protected from overlay
 - Continues from the creep that was already visible at low HP
 
+## ANSI Render Pipeline Rule
+
+**Always: draw → erase → position cursor.** The `\x1b[J` (erase to end of screen) must come BEFORE any cursor repositioning. If you move the cursor first, `\x1b[J` erases everything after it (borders, scores, etc).
+
+Pattern: `"\x1b[H" + lines.join("\n") + "\x1b[J" + cursorPositioning`
+
 ## Conventions
 
 - ES modules (`"type": "module"` in package.json, `.js` extensions in imports)
@@ -102,6 +108,9 @@ Wall is on the RIGHT side. Lane lines are stamped with borders:
 - Zero runtime dependencies - only Node.js built-ins
 - Data files (bugs.txt, facts.txt) validated at build time
 - Responsive layout: compact mode for terminals < 60 cols or < 18 rows
+- Fixed game size tiers: 80x25 (landscape) → 40x15 (compact), both CLI and web
+- Menu scenes use `menuPromptBorder()` + `cursorToPrompt()` from render.ts
+- Menu input auto-rejects invalid keystrokes via `matchesAnyOption()`
 
 ## Adding Words
 

@@ -243,7 +243,7 @@ function bottomBorder(state: GameState, target: Enemy | null): string {
   const surgeReady = state.surgeReady;
 
   const prompt = "$ rm ";
-  const MIN_PROMPT = 12;
+  const MIN_PROMPT = Math.max(15, Math.floor(width * 0.3));
   let inputDisplay: string;
   let contentLen: number;
   let color: string;
@@ -551,29 +551,41 @@ function renderDeathOverlay(frame: string, animTick: number, state: GameState): 
 export function enter(ctx: SceneContext, data?: unknown): void {
   const state = (data as GameState) ?? createGame();
   deathAnimStart = null;
+  function renderFrame(): void {
+    const frame = render(state);
+    if (deathAnimStart !== null) {
+      const animTick = state.tick - deathAnimStart;
+      ctx.writeFrame(renderDeathOverlay(frame, animTick, state));
+    } else {
+      ctx.writeFrame(frame);
+    }
+  }
+
   tickInterval = setInterval(() => {
     gameTick(state);
 
-    if (state.gameOver && deathAnimStart === null) {
+    // Start death animation when HP hits 0
+    if (state.hp <= 0 && deathAnimStart === null) {
       deathAnimStart = state.tick;
+    }
+
+    // Cancel death animation if player recovers HP (heal power-up, etc.)
+    if (state.hp > 0 && deathAnimStart !== null) {
+      deathAnimStart = null;
     }
 
     if (deathAnimStart !== null) {
       const animTick = state.tick - deathAnimStart;
       if (animTick > DEATH_ANIM_TICKS + 10) {
+        state.gameOver = true;
         if (tickInterval) clearInterval(tickInterval);
         tickInterval = null;
         ctx.navigate("gameover", state);
         return;
       }
-      // Keep ticking for animation (tick increments even when gameOver)
-      state.tick++;
-      const frame = render(state);
-      ctx.writeFrame(renderDeathOverlay(frame, animTick, state));
-      return;
     }
 
-    ctx.writeFrame(render(state));
+    renderFrame();
   }, TICK_MS);
 
   handler = (key: string) => {
@@ -584,14 +596,14 @@ export function enter(ctx: SceneContext, data?: unknown): void {
 
     if (key === "\x7f" || key === "\b") {
       state.inputBuffer = state.inputBuffer.slice(0, -1);
-      ctx.writeFrame(render(state));
+      renderFrame();
       return;
     }
 
     if (key.length === 1 && key >= " " && key <= "~") {
       state.inputBuffer += key;
       processInput(state);
-      ctx.writeFrame(render(state));
+      renderFrame();
     }
   };
 

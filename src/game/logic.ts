@@ -118,6 +118,7 @@ function spawnEnemy(state: GameState, config: WaveConfig, lane: number): Enemy {
     killedPoints: 0,
     powerUp: null,
     hitStunTriggered: false,
+    missedDamageApplied: false,
   };
 }
 
@@ -140,6 +141,7 @@ function spawnPowerUp(state: GameState, config: WaveConfig, lane: number): Enemy
     killedPoints: 0,
     powerUp: pu.effect,
     hitStunTriggered: false,
+    missedDamageApplied: false,
   };
 }
 
@@ -164,7 +166,6 @@ export function findTarget(state: GameState): Enemy | null {
 }
 
 export function processInput(state: GameState): HitResult | null {
-  if (state.gameOver) return null;
 
   const input = state.inputBuffer.toLowerCase();
   if (!input) {
@@ -240,6 +241,12 @@ export function processInput(state: GameState): HitResult | null {
         } else {
           state.surgeMeter += 1;
         }
+
+        // Dying recovery: kills at 0 HP restore a little integrity
+        if (state.hp <= 0) {
+          const recovery = zone === "CRITICAL" ? 5 : zone === "RISKY" ? 3 : 1;
+          state.hp = Math.min(state.maxHp, state.hp + recovery);
+        }
       }
 
       state.score += points;
@@ -293,6 +300,7 @@ function applyPowerUp(state: GameState, effect: PowerUpEffect): void {
 export function gameTick(state: GameState): void {
   if (state.gameOver) return;
 
+  // HP 0 = dying but not dead yet — game keeps running until scene ends it
   state.tick++;
 
   // Hitstun — freeze all movement for a beat after an impact
@@ -349,16 +357,36 @@ export function gameTick(state: GameState): void {
     }
 
     if (enemy.position >= ZONE_THRESHOLDS.CRITICAL) {
-      enemy.dead = true;
-      enemy.killedAt = state.tick;
-      enemy.killedZone = "MISSED";
-      enemy.killedPoints = 0;
-      // Power-ups just disappear — no damage, no combo break
-      if (!enemy.powerUp) {
-        state.hp -= enemy.damage;
-        state.combo = 0;
-        state.inputBuffer = "";
-        state.targetId = null;
+      // If player is actively typing this word, give a grace period
+      // to finish — they can see it being consumed but still type
+      if (state.targetId === enemy.id && !enemy.powerUp) {
+        // Deal damage on first contact but don't kill yet
+        if (!enemy.missedDamageApplied) {
+          enemy.missedDamageApplied = true;
+          state.hp -= enemy.damage;
+          state.combo = 0;
+        }
+        // Grace expires when word is fully past the wall
+        if (enemy.position >= ZONE_THRESHOLDS.CRITICAL + 0.15) {
+          enemy.dead = true;
+          enemy.killedAt = state.tick;
+          enemy.killedZone = "MISSED";
+          enemy.killedPoints = 0;
+          state.inputBuffer = "";
+          state.targetId = null;
+        }
+      } else {
+        enemy.dead = true;
+        enemy.killedAt = state.tick;
+        enemy.killedZone = "MISSED";
+        enemy.killedPoints = 0;
+        // Power-ups just disappear — no damage, no combo break
+        if (!enemy.powerUp) {
+          state.hp -= enemy.damage;
+          state.combo = 0;
+          state.inputBuffer = "";
+          state.targetId = null;
+        }
       }
     }
   }
@@ -381,8 +409,7 @@ export function gameTick(state: GameState): void {
     state.hp = Math.min(state.maxHp, state.hp + 15);
   }
 
-  if (state.hp <= 0) {
+  if (state.hp < 0) {
     state.hp = 0;
-    state.gameOver = true;
   }
 }
