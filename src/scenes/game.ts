@@ -160,7 +160,8 @@ function render(state: GameState): string {
   const wallStr = wallWidth > 0
     ? `${wallColor}${"█".repeat(wallWidth)}${c.reset}`
     : `${c.red}${c.bold}|${c.reset}`;
-  const wallCol = WIDTH - WALL_MAX + 2; // +1 for left border
+  // Wall anchored to right border — erodes from left as HP drops
+  const wallCol = wallWidth > 0 ? RIGHT_COL - wallWidth : RIGHT_COL - 1;
 
   // Zone markers — manual border + wall + status hints
   const effects: string[] = [];
