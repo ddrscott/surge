@@ -1,0 +1,255 @@
+import type { Enemy, GameState, HitResult, WaveConfig, Zone } from "../types.js";
+import { NUM_LANES } from "../types.js";
+import { getWord } from "./words.js";
+
+const ZONE_THRESHOLDS = {
+  SAFE: 0.5,
+  RISKY: 0.75,
+  CRITICAL: 1.0,
+};
+
+const ZONE_MULTIPLIERS: Record<Zone, number> = {
+  SAFE: 1,
+  RISKY: 2,
+  CRITICAL: 3,
+  MISSED: 0,
+};
+
+// Speeds tuned for 50ms tick (20fps) — divide old values by 4
+const WAVES: WaveConfig[] = [
+  { enemyCount: 5, minSpeed: 0.005, maxSpeed: 0.0075, minWordLength: 3, maxWordLength: 4, spawnInterval: 60 },
+  { enemyCount: 7, minSpeed: 0.005, maxSpeed: 0.010, minWordLength: 3, maxWordLength: 5, spawnInterval: 48 },
+  { enemyCount: 9, minSpeed: 0.006, maxSpeed: 0.011, minWordLength: 3, maxWordLength: 6, spawnInterval: 40 },
+  { enemyCount: 11, minSpeed: 0.007, maxSpeed: 0.013, minWordLength: 4, maxWordLength: 7, spawnInterval: 36 },
+  { enemyCount: 13, minSpeed: 0.007, maxSpeed: 0.014, minWordLength: 4, maxWordLength: 8, spawnInterval: 32 },
+  { enemyCount: 15, minSpeed: 0.009, maxSpeed: 0.015, minWordLength: 4, maxWordLength: 9, spawnInterval: 28 },
+  { enemyCount: 18, minSpeed: 0.009, maxSpeed: 0.016, minWordLength: 5, maxWordLength: 10, spawnInterval: 24 },
+  { enemyCount: 20, minSpeed: 0.010, maxSpeed: 0.018, minWordLength: 5, maxWordLength: 11, spawnInterval: 20 },
+];
+
+function getWaveConfig(wave: number): WaveConfig {
+  if (wave < WAVES.length) return WAVES[wave]!;
+  const last = WAVES[WAVES.length - 1]!;
+  const scale = 1 + (wave - WAVES.length) * 0.1;
+  return {
+    ...last,
+    enemyCount: Math.floor(last.enemyCount * scale),
+    minSpeed: last.minSpeed * scale,
+    maxSpeed: last.maxSpeed * scale,
+    spawnInterval: Math.max(10, last.spawnInterval - (wave - WAVES.length) * 2),
+  };
+}
+
+let nextEnemyId = 0;
+
+function randBetween(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
+
+function pickLane(state: GameState): number {
+  const occupied = new Set(state.enemies.filter((e) => !e.dead).map((e) => e.lane));
+  const free: number[] = [];
+  for (let i = 0; i < NUM_LANES; i++) {
+    if (!occupied.has(i)) free.push(i);
+  }
+  if (free.length > 0) return free[Math.floor(Math.random() * free.length)]!;
+  return Math.floor(Math.random() * NUM_LANES);
+}
+
+export function getZone(position: number): Zone {
+  if (position >= 1.0) return "MISSED";
+  if (position >= ZONE_THRESHOLDS.RISKY) return "CRITICAL";
+  if (position >= ZONE_THRESHOLDS.SAFE) return "RISKY";
+  return "SAFE";
+}
+
+function spawnEnemy(state: GameState, config: WaveConfig): Enemy {
+  const word = getWord(config.minWordLength, config.maxWordLength);
+  return {
+    id: nextEnemyId++,
+    word,
+    position: 0,
+    speed: randBetween(config.minSpeed, config.maxSpeed),
+    speedPhase: Math.random() * Math.PI * 2,
+    speedWobble: randBetween(0.15, 0.35),
+    damage: 10 + word.length * 2,
+    points: word.length * 10,
+    dead: false,
+    spawnedAt: state.tick,
+    lane: pickLane(state),
+    killedAt: -1,
+    killedZone: null,
+    killedPoints: 0,
+  };
+}
+
+export function findTarget(state: GameState): Enemy | null {
+  const input = state.inputBuffer.toLowerCase();
+  if (!input) return null;
+
+  const matches = state.enemies
+    .filter((e) => !e.dead && e.word.toLowerCase().startsWith(input))
+    .sort((a, b) => b.position - a.position);
+
+  if (state.targetId !== null) {
+    const locked = matches.find((e) => e.id === state.targetId);
+    if (locked) return locked;
+  }
+
+  return matches[0] ?? null;
+}
+
+export function processInput(state: GameState): HitResult | null {
+  if (state.gameOver) return null;
+
+  const input = state.inputBuffer.toLowerCase();
+  if (!input) {
+    state.targetId = null;
+    return null;
+  }
+
+  // Surge check
+  if (state.surgeReady && input === "surge") {
+    let totalPoints = 0;
+    let killCount = 0;
+    for (const enemy of state.enemies) {
+      if (!enemy.dead) {
+        enemy.dead = true;
+        enemy.killedAt = state.tick;
+        enemy.killedZone = "CRITICAL";
+        enemy.killedPoints = enemy.points * 3;
+        totalPoints += enemy.points * 3;
+        killCount++;
+      }
+    }
+    state.score += totalPoints;
+    state.surgeReady = false;
+    state.surgeMeter = 0;
+    state.combo += killCount;
+    if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+    state.inputBuffer = "";
+    state.targetId = null;
+    const result: HitResult = {
+      enemy: state.enemies[0] || ({} as Enemy),
+      zone: "CRITICAL",
+      points: totalPoints,
+      damage: 0,
+      perfect: true,
+    };
+    state.lastHit = result;
+    return result;
+  }
+
+  const target = findTarget(state);
+
+  if (target) {
+    state.targetId = target.id;
+
+    if (input === target.word.toLowerCase()) {
+      const zone = getZone(target.position);
+      const multiplier = ZONE_MULTIPLIERS[zone];
+      const points = target.points * multiplier;
+      let damage = 0;
+
+      target.dead = true;
+      target.killedAt = state.tick;
+      target.killedZone = zone;
+      target.killedPoints = points;
+
+      if (zone === "CRITICAL") {
+        state.surgeMeter += 3;
+      } else if (zone === "RISKY") {
+        state.surgeMeter += 2;
+      } else {
+        state.surgeMeter += 1;
+      }
+
+      if (target.position > 0.9) {
+        damage = Math.floor(target.damage * 0.3);
+        state.hp -= damage;
+      }
+
+      state.score += points;
+      state.combo += 1;
+      if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+
+      if (state.surgeMeter >= state.surgeThreshold) {
+        state.surgeReady = true;
+      }
+
+      state.inputBuffer = "";
+      state.targetId = null;
+
+      const result: HitResult = {
+        enemy: target,
+        zone,
+        points,
+        damage,
+        perfect: zone === "CRITICAL" && damage === 0,
+      };
+      state.lastHit = result;
+      return result;
+    }
+  } else {
+    state.targetId = null;
+  }
+
+  return null;
+}
+
+export function gameTick(state: GameState): void {
+  if (state.gameOver) return;
+
+  state.tick++;
+
+  const config = getWaveConfig(state.wave);
+
+  // Spawn enemies
+  const totalSpawned = state.enemies.length;
+  if (totalSpawned < config.enemyCount && state.tick % config.spawnInterval === 0) {
+    state.enemies.push(spawnEnemy(state, config));
+  }
+
+  // Move enemies with wobble for organic feel
+  for (const enemy of state.enemies) {
+    if (enemy.dead) continue;
+
+    const wobble = 1 + Math.sin(state.tick * 0.08 + enemy.speedPhase) * enemy.speedWobble;
+    const urgency = 1 + enemy.position * 0.3;
+    enemy.position += enemy.speed * wobble * urgency;
+
+    if (enemy.position >= 1.0) {
+      enemy.dead = true;
+      enemy.killedAt = state.tick;
+      enemy.killedZone = "MISSED";
+      enemy.killedPoints = 0;
+      state.hp -= enemy.damage;
+      state.combo = 0;
+      if (state.targetId === enemy.id) {
+        state.targetId = null;
+        state.inputBuffer = "";
+      }
+    }
+  }
+
+  // Clean up old dead enemies (keep for a short animation window)
+  const DEATH_ANIM_TICKS = 8; // ~400ms at 50ms/tick
+  state.enemies = state.enemies.filter(
+    (e) => !e.dead || (state.tick - e.killedAt) < DEATH_ANIM_TICKS
+  );
+
+  // Check wave complete — all spawned AND all dead AND animations done
+  const allDead = state.enemies.filter((e) => !e.dead).length === 0;
+  const allAnimDone = state.enemies.every((e) => e.dead && (state.tick - e.killedAt) >= DEATH_ANIM_TICKS);
+  if (totalSpawned >= config.enemyCount && allDead && (state.enemies.length === 0 || allAnimDone)) {
+    state.wave++;
+    state.enemies = [];
+    state.targetId = null;
+    state.hp = Math.min(state.maxHp, state.hp + 15);
+  }
+
+  if (state.hp <= 0) {
+    state.hp = 0;
+    state.gameOver = true;
+  }
+}
