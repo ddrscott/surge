@@ -76,7 +76,19 @@ export function getZone(position: number): Zone {
 }
 
 const SCROLL_IN = 0.05; // must match game.ts
-const INJECTION_START = 0.85; // must match game.ts — wire touches word here
+const ANCHOR_COL = 1;   // must match game.ts
+const WIRE_MARGIN = 2;  // must match game.ts
+
+/** Per-enemy position where wire first touches the last letter of the word.
+ *  Wire grows at fieldWidth cols per 1.0 position, so shorter gaps (longer words)
+ *  get contacted sooner. */
+export function contactPosition(wordLen: number): number {
+  const { fieldWidth } = layout();
+  const wireAreaStart = ANCHOR_COL + wordLen;
+  const wireAreaEnd = fieldWidth - WIRE_MARGIN;
+  const maxWireLen = Math.max(1, wireAreaEnd - wireAreaStart);
+  return SCROLL_IN + maxWireLen / fieldWidth;
+}
 
 /** How many letters of an enemy's word have scrolled into view (tail-first) */
 export function revealedCount(enemy: Enemy): number {
@@ -328,10 +340,11 @@ export function gameTick(state: GameState): void {
     // speed is position/tick (already converted from screen widths/sec)
     enemy.position += enemy.speed * slow;
 
-    // Hitstun when wire first touches the word (gap closes to 0)
-    if (!enemy.hitStunTriggered && !enemy.powerUp && enemy.position >= INJECTION_START) {
+    // Hitstun when wire first touches the word's last letter (per-enemy gap)
+    const cPos = contactPosition(enemy.word.length);
+    if (!enemy.hitStunTriggered && !enemy.powerUp && enemy.position >= cPos) {
       enemy.hitStunTriggered = true;
-      // Freeze for 8 ticks (~400ms) to let the wire-touch sink in
+      // Freeze for 8 ticks (~400ms) — a single beat
       state.hitStunUntil = state.tick + 8;
     }
 

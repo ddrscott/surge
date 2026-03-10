@@ -1,17 +1,17 @@
 import type { Enemy, GameState, Zone } from "../types.js";
 import { layout, c, bLine, bDiv, zoneColor, bar, hpColor } from "../render.js";
 import { createGame } from "../game/state.js";
-import { gameTick, processInput, findTarget, getZone, comboMultiplier } from "../game/logic.js";
+import { gameTick, processInput, findTarget, getZone, comboMultiplier, contactPosition } from "../game/logic.js";
 import type { SceneContext } from "./types.js";
 
 const TICK_MS = 50; // 20fps for smooth movement
 
 let handler: ((key: string) => void) | null = null;
 let tickInterval: ReturnType<typeof setInterval> | null = null;
+let deathAnimStart: number | null = null;
 
 // --- Phase thresholds (must match logic.ts SCROLL_IN) ---
 const SCROLL_IN = 0.05; // brief dim fade-in
-const INJECTION_START = 0.85;
 
 // --- Matrix wire ---
 const HEX = "0123456789abcdef";
@@ -97,9 +97,9 @@ function renderLaneContent(
   const maxWireLen = Math.max(0, wireAreaEnd - wireAreaStart);
 
   // --- Phase 2: Static word + matrix wire (grows RIGHT→LEFT toward word) ---
-  if (enemy.position < INJECTION_START) {
-    const wireProgress = (enemy.position - SCROLL_IN) / (INJECTION_START - SCROLL_IN);
-    const wireLen = Math.max(0, Math.round(wireProgress * maxWireLen));
+  const injStart = contactPosition(enemy.word.length);
+  if (enemy.position < injStart) {
+    const wireLen = Math.min(maxWireLen, Math.max(0, Math.round((enemy.position - SCROLL_IN) * fieldWidth)));
     const wireStart = wireAreaEnd - wireLen;
     const gap = wireStart - wireAreaStart;
 
@@ -108,7 +108,8 @@ function renderLaneContent(
     let wire = "";
     for (let i = 0; i < wireLen; i++) {
       const proximity = 1 - i / Math.max(1, wireLen - 1);
-      const brightness = proximity * 0.5 + wireProgress * 0.5;
+      const overallProgress = wireLen / Math.max(1, maxWireLen);
+      const brightness = proximity * 0.5 + overallProgress * 0.5;
       const bright = brightness > 0.6 ? c.bold : brightness > 0.3 ? "" : c.dim;
       wire += `${wireColor}${bright}${wireChar(tick, wireStart + i, reversed)}${c.reset}`;
     }
@@ -134,7 +135,7 @@ function renderLaneContent(
 
   // --- Phase 3: Elastic injection (word stretches toward RIGHT wall) ---
   // Wire stays visible as background; stretching letters overwrite it
-  const injProgress = Math.min(1, (enemy.position - INJECTION_START) / (1.0 - INJECTION_START));
+  const injProgress = Math.min(1, (enemy.position - injStart) / (1.0 - injStart));
 
   // Build wire background into buffer first
   const buf: (string | null)[] = new Array(fieldWidth).fill(null);
@@ -235,51 +236,49 @@ function renderDeath(enemy: Enemy, tick: number, fieldWidth: number): string {
   return `${c.dim}·${c.reset}`;
 }
 
-/** Build the bottom ╚══[ input ]══╝ border with score + combo */
+/** Build the bottom ╚[ $ rm input█ ]═══[score]══[combo]╝ border */
 function bottomBorder(state: GameState, target: Enemy | null): string {
   const { width } = layout();
   const input = state.inputBuffer;
   const surgeReady = state.surgeReady;
 
-  let displayText: string;
+  const prompt = "$ rm ";
+  let inputDisplay: string;
   let color: string;
 
   if (surgeReady && !input) {
-    displayText = " type surge ";
-    color = c.magenta;
+    inputDisplay = `${c.dim}${prompt}${c.reset}${c.magenta}${c.bold}type surge${c.reset} `;
   } else if (input) {
     const noMatch = target === null;
-    displayText = ` ${input}█ `;
     color = noMatch ? c.red : (surgeReady ? c.magenta : c.cyan);
+    inputDisplay = `${c.dim}${prompt}${c.reset}${c.bold}${color}${input}█${c.reset} `;
   } else {
-    displayText = " █ ";
-    color = "";
+    inputDisplay = `${c.dim}${prompt}█${c.reset} `;
   }
+
+  const inputVisualLen = surgeReady && !input
+    ? prompt.length + "type surge".length + 1
+    : input
+      ? prompt.length + input.length + 2  // +█ +space
+      : prompt.length + 2;               // +█ +space
 
   const cm = comboMultiplier(state.combo);
   const scoreStr = state.score.toLocaleString();
-  const leftLabel = scoreStr;
-  const rightLabel = state.combo > 0 ? `${cm}x` : "";
-  const leftBracketLen = leftLabel.length + 2;
-  const rightBracketLen = rightLabel ? rightLabel.length + 2 : 0;
-  const inputBracketLen = displayText.length + 2;
-  const fixedLen = 2 + leftBracketLen + inputBracketLen + rightBracketLen;
+  const scoreLabel = scoreStr;
+  const comboLabel = state.combo > 0 ? `${cm}x` : "";
+  const scoreBracketLen = scoreLabel.length + 2;
+  const comboBracketLen = comboLabel ? comboLabel.length + 2 : 0;
+  const inputBracketLen = inputVisualLen + 2;
+  const fixedLen = 2 + inputBracketLen + scoreBracketLen + comboBracketLen;
   const fillTotal = Math.max(0, width - fixedLen + 2);
-  const leftFill = Math.floor(fillTotal / 2);
-  const rightFill = fillTotal - leftFill;
 
-  const leftPart = `${c.cyan}╚[${c.reset}${c.bold}${c.yellow}${leftLabel}${c.reset}${c.cyan}]${"═".repeat(leftFill)}`;
-  const rightPart = `${"═".repeat(rightFill)}${rightLabel ? `[${c.reset}${c.bold}${c.yellow}${rightLabel}${c.reset}${c.cyan}]` : ""}╝${c.reset}`;
+  const leftPart = `${c.cyan}╚[${c.reset}${inputDisplay}${c.cyan}]`;
+  const rightPart =
+    `[${c.reset}${c.bold}${c.yellow}${scoreLabel}${c.reset}${c.cyan}]` +
+    (comboLabel ? `[${c.reset}${c.bold}${c.yellow}${comboLabel}${c.reset}${c.cyan}]` : "") +
+    `╝${c.reset}`;
 
-  if (!input && !surgeReady) {
-    return `${leftPart}[${c.dim}${displayText}${c.cyan}]${rightPart}`;
-  }
-
-  return (
-    `${leftPart}[${c.reset}` +
-    `${c.bold}${color}${displayText}${c.reset}` +
-    `${c.cyan}]${rightPart}`
-  );
+  return `${leftPart}${"═".repeat(fillTotal)}${rightPart}`;
 }
 
 function render(state: GameState): string {
@@ -384,7 +383,8 @@ function render(state: GameState): string {
       const isTarget = target !== null && alive.id === target.id;
       const matched = isTarget ? inputLen : 0;
       const hitStun = state.hitStunUntil > state.tick;
-      lines.push(renderLaneContent(alive, matched, zone, state.tick, hitStun));
+      const frozenTick = hitStun ? state.hitStunUntil : state.tick;
+      lines.push(renderLaneContent(alive, matched, zone, frozenTick, hitStun));
       continue;
     }
 
@@ -406,23 +406,166 @@ function render(state: GameState): string {
     lines[lineIdx] = `${c.cyan}║${c.reset}` + raw + `\x1b[K\x1b[${wallCol}G${wallPad}${wallStr}${c.cyan}║${c.reset}`;
   }
 
+  // Creep effect: wires bleed through the wall when HP is low
+  const CREEP_THRESHOLD = 0.3;
+  const MAX_CREEP = Math.round(fieldWidth * 0.3);
+  if (hpRatio < CREEP_THRESHOLD && hpRatio > 0) {
+    const creepProgress = 1 - hpRatio / CREEP_THRESHOLD; // 0 at 30%, 1 at 0%
+    const creepCols = Math.max(0, Math.round(creepProgress * MAX_CREEP));
+    if (creepCols > 0) {
+      for (let i = 0; i < lanes; i++) {
+        const lineIdx = lines.length - lanes + i;
+        // Stagger: vary creep per lane for organic look
+        const jitter = Math.round(Math.sin(i * 2.3 + state.tick * 0.05) * 2);
+        const laneCols = Math.max(0, Math.min(creepCols + jitter, rightCol - 2));
+        if (laneCols <= 0) continue;
+        let wire = "";
+        for (let col = 0; col < laneCols; col++) {
+          const brightness = col / Math.max(1, laneCols - 1);
+          const bright = brightness > 0.7 ? c.bold : brightness > 0.3 ? "" : c.dim;
+          wire += `${c.red}${bright}${wireChar(state.tick, col + i * 7, false)}${c.reset}`;
+        }
+        const startCol = rightCol - laneCols;
+        lines[lineIdx] = lines[lineIdx]! + `\x1b[${startCol}G${wire}`;
+      }
+    }
+  }
+
   lines.push(bDiv("─", "╟", "╢"));
   lines.push(bottomBorder(state, target));
 
   return "\x1b[H" + lines.join("\n") + "\x1b[J";
 }
 
+const DEATH_ANIM_TICKS = 50; // ~2.5s at 50ms/tick
+
+/** Overlay matrix wires flooding from right to left at game over.
+ *  Continues from the creep that was already visible at low HP.
+ *  Protects the bottom border score/combo brackets. */
+function renderDeathOverlay(frame: string, animTick: number, state: GameState): string {
+  const { fieldWidth, lanes, rightCol, wallMax, width } = layout();
+  const lines = frame.split("\n");
+
+  // Lane lines: last `lanes` lines before divider + bottom border
+  const laneEndIdx = lines.length - 2;
+  const laneStartIdx = laneEndIdx - lanes;
+
+  // Creep was at ~30% of fieldWidth when HP hit 0 — death anim continues from there
+  const CREEP_START = Math.round(fieldWidth * 0.3);
+  const progress = Math.min(1, animTick / DEATH_ANIM_TICKS);
+
+  // Lanes: flood from CREEP_START to full width
+  for (let i = 0; i < lanes; i++) {
+    const lineIdx = laneStartIdx + i;
+    if (lineIdx < 0 || lineIdx >= lines.length) continue;
+
+    // Per-lane stagger: outer lanes get eaten first (wave front)
+    const center = lanes / 2;
+    const dist = Math.abs(i - center) / center;
+    const laneDelay = (1 - dist) * 0.15;
+    const laneProgress = Math.max(0, Math.min(1, (progress - laneDelay) / (1 - laneDelay)));
+    const totalWidth = fieldWidth + wallMax;
+    const laneCols = CREEP_START + Math.round(laneProgress * laneProgress * (totalWidth - CREEP_START));
+
+    if (laneCols <= 0) continue;
+
+    let wire = "";
+    for (let col = 0; col < laneCols; col++) {
+      const brightness = col / Math.max(1, laneCols - 1);
+      const bright = brightness > 0.7 ? c.bold : brightness > 0.3 ? "" : c.dim;
+      wire += `${c.red}${bright}${wireChar(animTick, col + i * 7, false)}${c.reset}`;
+    }
+
+    const startCol = rightCol - laneCols + 1;
+    if (startCol > 0) {
+      lines[lineIdx] = lines[lineIdx]! + `\x1b[${startCol}G${wire}`;
+    } else {
+      lines[lineIdx] = `${c.cyan}║${c.reset}${wire}\x1b[${rightCol}G${c.cyan}║${c.reset}`;
+    }
+  }
+
+  // Header overflow (after 60% progress)
+  if (progress > 0.6) {
+    const overflowProgress = (progress - 0.6) / 0.4;
+    const overflowCols = Math.round(overflowProgress * overflowProgress * rightCol);
+    if (overflowCols > 0) {
+      for (let i = 0; i < laneStartIdx; i++) {
+        let wire = "";
+        for (let col = 0; col < overflowCols; col++) {
+          const bright = col > overflowCols * 0.7 ? c.bold : col > overflowCols * 0.3 ? "" : c.dim;
+          wire += `${c.red}${bright}${wireChar(animTick, col + i * 13, false)}${c.reset}`;
+        }
+        const startCol = rightCol - overflowCols + 1;
+        if (startCol > 0) {
+          lines[i] = lines[i]! + `\x1b[${startCol}G${wire}`;
+        }
+      }
+
+      // Bottom border: flood the fill area but protect score/combo brackets on the right
+      // Bottom layout: ╚[ $ rm ...█ ]═══════[score][combo]╝
+      // Protect from the first [ of score onward
+      const cm = comboMultiplier(state.combo);
+      const scoreStr = state.score.toLocaleString();
+      const comboLabel = state.combo > 0 ? `${cm}x` : "";
+      const protectedLen = scoreStr.length + 2 + (comboLabel ? comboLabel.length + 2 : 0) + 1; // brackets + ╝
+      const safeCol = width + 2 - protectedLen; // 1-based column where protection starts
+      const bottomCols = Math.min(overflowCols, Math.max(0, safeCol - 2)); // don't eat past score
+
+      if (bottomCols > 0) {
+        // Divider line
+        const divIdx = laneEndIdx;
+        let divWire = "";
+        for (let col = 0; col < bottomCols; col++) {
+          const bright = col > bottomCols * 0.7 ? c.bold : col > bottomCols * 0.3 ? "" : c.dim;
+          divWire += `${c.red}${bright}${wireChar(animTick, col + 99, false)}${c.reset}`;
+        }
+        const divStart = safeCol - bottomCols;
+        if (divStart > 0 && divIdx >= 0 && divIdx < lines.length) {
+          lines[divIdx] = lines[divIdx]! + `\x1b[${divStart}G${divWire}`;
+        }
+
+        // Bottom border line
+        const botIdx = lines.length - 1;
+        let botWire = "";
+        for (let col = 0; col < bottomCols; col++) {
+          const bright = col > bottomCols * 0.7 ? c.bold : col > bottomCols * 0.3 ? "" : c.dim;
+          botWire += `${c.red}${bright}${wireChar(animTick, col + 77, false)}${c.reset}`;
+        }
+        const botStart = safeCol - bottomCols;
+        if (botStart > 0 && botIdx >= 0) {
+          lines[botIdx] = lines[botIdx]! + `\x1b[${botStart}G${botWire}`;
+        }
+      }
+    }
+  }
+
+  return lines.join("\n");
+}
+
 export function enter(ctx: SceneContext, data?: unknown): void {
   const state = (data as GameState) ?? createGame();
+  deathAnimStart = null;
   process.stdout.write("\x1b[?25l"); // hide cursor
 
   tickInterval = setInterval(() => {
     gameTick(state);
 
-    if (state.gameOver) {
-      if (tickInterval) clearInterval(tickInterval);
-      tickInterval = null;
-      ctx.navigate("gameover", state);
+    if (state.gameOver && deathAnimStart === null) {
+      deathAnimStart = state.tick;
+    }
+
+    if (deathAnimStart !== null) {
+      const animTick = state.tick - deathAnimStart;
+      if (animTick > DEATH_ANIM_TICKS + 10) {
+        if (tickInterval) clearInterval(tickInterval);
+        tickInterval = null;
+        ctx.navigate("gameover", state);
+        return;
+      }
+      // Keep ticking for animation (tick increments even when gameOver)
+      state.tick++;
+      const frame = render(state);
+      ctx.writeFrame(renderDeathOverlay(frame, animTick, state));
       return;
     }
 
