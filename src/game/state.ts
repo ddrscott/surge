@@ -22,5 +22,7 @@ export function createGame(): GameState {
     nextSpawnTick: 1,
     waveSpawned: 0,
     hitStunUntil: 0,
+    killChecksum: 0,
+    kills: 0,
   };
 }

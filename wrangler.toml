@@ -14,8 +14,10 @@ not_found_handling = "single-page-application"
 # Auth: shared JWT_SECRET with auth.ljs.app (set via `wrangler secret put JWT_SECRET`)
 # Local dev: add JWT_SECRET to .dev.vars
 
-# Future: D1 leaderboard database
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "surge-db"
-# database_id = "<create with: npx wrangler d1 create surge-db>"
+[[d1_databases]]
+binding = "DB"
+database_name = "surge-db"
+database_id = "placeholder-create-with-wrangler-d1-create"
+# Create the database: npx wrangler d1 create surge-db
+# Then replace database_id above with the real ID
+# Apply migrations: npx wrangler d1 migrations apply surge-db

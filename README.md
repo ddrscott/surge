@@ -190,7 +190,7 @@ This preserves the single-player core while adding competitive pressure through 
 
 ## Authentication
 
-Surge integrates with [auth.ljs.app](https://auth.ljs.app) for email-based authentication via magic links. Auth is **optional** - anyone can play without signing in. Authentication is only required for future leaderboard score submission.
+Surge integrates with [auth.ljs.app](https://auth.ljs.app) for email-based authentication via magic links. Auth is **optional** - anyone can play without signing in. Authentication is required for leaderboard score submission.
 
 ### How It Works
 
@@ -208,6 +208,16 @@ Surge integrates with [auth.ljs.app](https://auth.ljs.app) for email-based authe
 | `GET` | `/api/auth/callback` | Receive token, set session cookie, redirect |
 | `GET` | `/api/auth/me` | Return current user info from session cookie |
 | `POST` | `/api/auth/logout` | Clear session cookie |
+
+### Leaderboard API Routes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/scores` | Submit score (authenticated, checksum validated) |
+| `GET` | `/api/scores` | Global top scores (public, `?limit=N` up to 100) |
+| `GET` | `/api/scores/me` | Current user's top 10 scores (authenticated) |
+
+Score submissions include a rolling checksum accumulated during gameplay (per-kill hash of word, speed, zone, and points). The server validates field sanity and rate-limits submissions. Exact validation thresholds are server-side only.
 
 ### Setup
 
@@ -234,12 +244,14 @@ npx wrangler deploy
 # Set auth secret
 wrangler secret put JWT_SECRET
 
-# Future: create D1 database for leaderboards
+# Create D1 database for leaderboards
 npx wrangler d1 create surge-db
-# Then uncomment the [[d1_databases]] block in wrangler.toml
+# Update database_id in wrangler.toml with the returned ID
+# Apply schema migrations
+npx wrangler d1 migrations apply surge-db
 ```
 
-The Worker is D1-ready. Uncomment the database binding in `wrangler.toml` and add API routes in `worker/index.ts` for leaderboards, daily challenges, and multiplayer matchmaking.
+The Worker uses D1 for the leaderboard. Migrations live in `migrations/`. The score submission API validates a per-kill rolling checksum accumulated during gameplay to resist fake submissions.
 
 ## License
 

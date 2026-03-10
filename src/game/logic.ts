@@ -2,6 +2,20 @@ import type { Enemy, GameState, HitResult, PowerUpEffect, WaveConfig, Zone } fro
 import { layout } from "../render.js";
 import { getWord, getPowerUp } from "./words.js";
 
+/**
+ * Accumulate a kill event into the rolling checksum.
+ * Uses a simple hash: for each character in the event string,
+ * multiply running value by 31 and add char code, keeping it 32-bit.
+ */
+export function accumulateChecksum(current: number, word: string, speed: number, zone: string, points: number): number {
+  const event = `${word}|${speed.toFixed(6)}|${zone}|${points}`;
+  let hash = current;
+  for (let i = 0; i < event.length; i++) {
+    hash = (Math.imul(hash, 31) + event.charCodeAt(i)) | 0;
+  }
+  return hash >>> 0; // unsigned 32-bit
+}
+
 const ZONE_THRESHOLDS = {
   SAFE: 0.5,
   RISKY: 0.85,
@@ -187,6 +201,10 @@ export function processInput(state: GameState): HitResult | null {
         enemy.killedPoints = pts;
         totalPoints += pts;
         killCount++;
+        if (!enemy.powerUp) {
+          state.killChecksum = accumulateChecksum(state.killChecksum, enemy.word, enemy.speed * FPS, "CRITICAL", pts);
+          state.kills++;
+        }
       }
     }
     state.score += totalPoints;
@@ -228,6 +246,12 @@ export function processInput(state: GameState): HitResult | null {
       target.killedAt = state.tick;
       target.killedZone = zone;
       target.killedPoints = points;
+
+      // Accumulate checksum for non-power-up kills
+      if (!target.powerUp) {
+        state.killChecksum = accumulateChecksum(state.killChecksum, target.word, target.speed * FPS, zone, points);
+        state.kills++;
+      }
 
       // Apply power-up effect
       if (target.powerUp) {

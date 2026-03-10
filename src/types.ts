@@ -68,6 +68,10 @@ export interface GameState {
   waveSpawned: number;
   /** Tick when hitstun ends — all movement freezes on impact */
   hitStunUntil: number;
+  /** Rolling checksum of all kill events for anti-cheat validation */
+  killChecksum: number;
+  /** Total kills (bugs only, not power-ups) */
+  kills: number;
 }
 
 export interface WaveConfig {

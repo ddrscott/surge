@@ -11,5 +11,5 @@
 - [x] Match game over scene aesthetic to title screen — center text, use title screen styling, keep red border — [detail](work-queue/gameover-aesthetic.md)
 - [x] Change deployment domain to `surge.ljs.app` — update wrangler.toml and any hardcoded URLs — [detail](work-queue/domain-change.md)
 - [x] Integrate auth.ljs.app email authentication — shared parent domain cookie/token flow — [detail](work-queue/auth-integration.md)
-- [ ] D1 leaderboard API — score submission with per-kill checksum validation — [detail](work-queue/leaderboard-api.md)
+- [x] D1 leaderboard API — score submission with per-kill checksum validation — [detail](work-queue/leaderboard-api.md)
 - [ ] Leaderboard UI scene — view global top scores from game over or title screen — [detail](work-queue/leaderboard-ui.md)
