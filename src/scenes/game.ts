@@ -102,19 +102,24 @@ function renderLaneContent(
     const wireStart = wireAreaEnd - wireLen;
     const gap = wireStart - wireAreaStart; // shrinking gap between word and wire
 
-    // Build wire string
+    // Build wire string — brighter near the word (left edge), dimmer near the wall
     const wireColor = zoneColor(zone);
     const reversed = matched > 0;
     let wire = "";
     for (let i = 0; i < wireLen; i++) {
-      wire += wireChar(tick, wireStart + i, reversed);
+      // i=0 is closest to word (left edge), i=wireLen-1 is near wall (right edge)
+      const proximity = 1 - i / Math.max(1, wireLen - 1); // 1 at word, 0 at wall
+      // Blend: bright when close + overall progress makes everything brighter
+      const brightness = proximity * 0.5 + wireProgress * 0.5;
+      const bright = brightness > 0.6 ? c.bold : brightness > 0.3 ? "" : c.dim;
+      wire += `${wireColor}${bright}${wireChar(tick, wireStart + i, reversed)}${c.reset}`;
     }
 
     const leftPad = " ".repeat(anchorCol);
     const gapPad = " ".repeat(Math.max(0, gap));
     const wordStr = renderWordStr(enemy, matched, zone, 0, len);
 
-    return leftPad + wordStr + gapPad + `${wireColor}${c.dim}${wire}${c.reset}`;
+    return leftPad + wordStr + gapPad + wire;
   }
 
   // --- Phase 3: Elastic injection (word stretches toward RIGHT wall) ---
