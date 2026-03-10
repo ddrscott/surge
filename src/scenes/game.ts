@@ -89,6 +89,46 @@ function renderDeath(enemy: Enemy, tick: number): string {
   return `  ${c.dim}·${c.reset}`;
 }
 
+/** Build the bottom ╚══[ input ]══╝ border with embedded typing */
+function bottomBorder(state: GameState, target: Enemy | null): string {
+  const input = state.inputBuffer;
+  const surgeReady = state.surgeReady;
+
+  // Determine display text and color
+  let displayText: string;
+  let color: string;
+
+  if (surgeReady && !input) {
+    // Pulsing surge prompt when idle
+    displayText = " type surge ";
+    color = c.magenta;
+  } else if (input) {
+    const noMatch = target === null;
+    displayText = ` ${input}█ `;
+    color = noMatch ? c.red : (surgeReady ? c.magenta : c.cyan);
+  } else {
+    // Idle cursor
+    displayText = " █ ";
+    color = "";
+  }
+
+  const bracketLen = displayText.length + 2; // [ and ]
+  const fillTotal = WIDTH - bracketLen;
+  const leftFill = Math.floor(fillTotal / 2);
+  const rightFill = fillTotal - leftFill;
+
+  if (!input && !surgeReady) {
+    // Dim idle cursor
+    return `${c.cyan}╚${"═".repeat(leftFill)}[${c.dim}${displayText}${c.cyan}]${"═".repeat(rightFill)}╝${c.reset}`;
+  }
+
+  return (
+    `${c.cyan}╚${"═".repeat(leftFill)}[${c.reset}` +
+    `${c.bold}${color}${displayText}${c.reset}` +
+    `${c.cyan}]${"═".repeat(rightFill)}╝${c.reset}`
+  );
+}
+
 function render(state: GameState): string {
   const lines: string[] = [];
 
@@ -122,8 +162,14 @@ function render(state: GameState): string {
     : `${c.red}${c.bold}|${c.reset}`;
   const wallCol = WIDTH - WALL_MAX + 2; // +1 for left border
 
-  // Zone markers — manual border + wall
-  lines.push(`${c.cyan}║${c.reset}  ${c.dim}·${c.reset}                                        ${c.dim}type the word to${c.reset} ${c.red}${c.bold}SQUASH${c.reset}\x1b[K\x1b[${wallCol}G${wallStr}\x1b[${RIGHT_COL}G${c.cyan}║${c.reset}`);
+  // Zone markers — manual border + wall + status hints
+  const effects: string[] = [];
+  if (state.doubleScoreUntil > state.tick) effects.push(`${c.magenta}${c.bold}2x SCORE${c.reset}`);
+  if (state.slowUntil > state.tick) effects.push(`${c.magenta}${c.bold}FREEZE${c.reset}`);
+  const statusHint = effects.length > 0
+    ? `  ${effects.join("  ")}`
+    : `${c.dim}type the word to${c.reset} ${c.red}${c.bold}SQUASH${c.reset}`;
+  lines.push(`${c.cyan}║${c.reset}  ${c.dim}·${c.reset}                                        ${statusHint}\x1b[K\x1b[${wallCol}G${wallStr}\x1b[${RIGHT_COL}G${c.cyan}║${c.reset}`);
 
   // Build lane map — living enemies take priority, dead ones shown as ghosts
   const liveLaneMap = new Map<number, Enemy>();
@@ -184,33 +230,8 @@ function render(state: GameState): string {
 
   lines.push(bDiv("─", "╟", "╢"));
 
-  // Status line
-  if (state.wave === 0 && state.tick < 20 && state.enemies.length === 0) {
-    lines.push(bLine(`${c.dim}  they're crawling in. name them to squash them.${c.reset}`));
-  } else if (state.surgeReady) {
-    lines.push(bLine(`  ${c.magenta}${c.bold}fumigate. type "surge".${c.reset}`));
-  } else {
-    // Show active power-up effects
-    const effects: string[] = [];
-    if (state.doubleScoreUntil > state.tick) effects.push(`${c.magenta}${c.bold}2x SCORE${c.reset}`);
-    if (state.slowUntil > state.tick) effects.push(`${c.magenta}${c.bold}FREEZE${c.reset}`);
-    if (effects.length > 0) {
-      lines.push(bLine(`  ${effects.join("  ")}`));
-    } else {
-      lines.push(bLine(""));
-    }
-  }
-
-  // Input line
-  lines.push(bDiv("─", "╟", "╢"));
-  if (state.inputBuffer) {
-    const noMatch = target === null;
-    const inputColor = noMatch ? c.red : c.cyan;
-    lines.push(bLine(`  ${c.bold}${inputColor}${state.inputBuffer}${c.reset}${c.dim}█${c.reset}`));
-  } else {
-    lines.push(bLine(`  ${c.dim}█${c.reset}`));
-  }
-  lines.push(bDiv("═", "╚", "╝"));
+  // Bottom border with embedded input
+  lines.push(bottomBorder(state, target));
 
   return lines.join("\n") + "\x1b[J";
 }

@@ -27,7 +27,7 @@ export interface Enemy {
   powerUp: PowerUpEffect | null;
 }
 
-export const NUM_LANES = 14;
+export const NUM_LANES = 17;
 
 export type Zone = "SAFE" | "RISKY" | "CRITICAL" | "MISSED";
 
