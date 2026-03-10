@@ -1,9 +1,15 @@
 import type { GameState } from "../types.js";
-import { layout, c, bLine, bDiv, padToRows, renderTitleWord, menuPromptBorder, matchesAnyOption, cursorToPrompt } from "../render.js";
+import { layout, c, bLine, bDiv, decorBar, padToRows, renderTitleWord, menuPromptBorder, matchesAnyOption, cursorToPrompt } from "../render.js";
 import { getRandomFact } from "../game/facts.js";
 import type { SceneContext } from "./types.js";
 
 let handler: ((key: string) => void) | null = null;
+
+/** Center a string within `w` columns */
+function center(text: string, w: number): string {
+  const pad = Math.max(0, Math.floor((w - text.length) / 2));
+  return " ".repeat(pad) + text;
+}
 
 /** Word-wrap text to fit within maxWidth, returning up to maxLines lines */
 function wrapFact(text: string, maxWidth: number, maxLines: number): string[] {
@@ -25,7 +31,8 @@ function wrapFact(text: string, maxWidth: number, maxLines: number): string[] {
 }
 
 function renderScreen(state: GameState, inputBuffer: string, fact: string): string {
-  const { width } = layout();
+  const { compact, width } = layout();
+  const inner = width;
   const lines: string[] = [];
   const rc = `${c.red}${c.bold}`; // red color for game over borders
 
@@ -39,19 +46,38 @@ function renderScreen(state: GameState, inputBuffer: string, fact: string): stri
     "quit"
   );
 
-  // Inner width minus border padding (║ + 2 spaces each side)
+  // Inner width minus some padding for fact wrapping
   const factWidth = width - 4;
   const factLines = wrapFact(fact, factWidth, 3);
 
+  const dbar = decorBar();
+
   lines.push(bDiv("═", "╔", "╗", rc));
-  lines.push(bLine("", rc));
-  lines.push(bLine(`${c.dim}  stack overflow.${c.reset}`, rc));
-  lines.push(bLine(`${c.dim}  wave ${c.white}${state.wave + 1}${c.dim} · ${c.white}${c.bold}${state.score.toLocaleString()}${c.reset}${c.dim} pts · streak ${c.white}${c.bold}${state.maxCombo}${c.reset}`, rc));
+
+  if (compact) {
+    lines.push(bLine(`${c.dim}${center("stack overflow.", inner)}${c.reset}`, rc));
+    const stats = `wave ${state.wave + 1} · ${state.score.toLocaleString()} pts · streak ${state.maxCombo}`;
+    lines.push(bLine(`${c.dim}${center(stats, inner)}${c.reset}`, rc));
+  } else {
+    lines.push(bLine("", rc));
+    lines.push(bLine(dbar, rc));
+    lines.push(bLine("", rc));
+    const title = "STACK OVERFLOW";
+    lines.push(bLine(`${c.red}${c.bold}${center(title, inner)}${c.reset}`, rc));
+    lines.push(bLine("", rc));
+    lines.push(bLine(dbar, rc));
+    lines.push(bLine("", rc));
+    const statsText = `wave ${state.wave + 1}  ·  ${state.score.toLocaleString()} pts  ·  streak ${state.maxCombo}`;
+    lines.push(bLine(`${c.dim}${center(statsText, inner)}${c.reset}`, rc));
+  }
+
   lines.push(bLine("", rc));
   for (const fl of factLines) {
-    lines.push(bLine(`  ${c.brightGreen}${fl}${c.reset}`, rc));
+    lines.push(bLine(`${c.brightGreen}${center(fl, inner)}${c.reset}`, rc));
   }
   lines.push(bLine("", rc));
+  if (!compact) lines.push(bLine(dbar, rc));
+  if (!compact) lines.push(bLine("", rc));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${jackWord} ${c.dim}to jack back in${c.reset}`, rc));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord} ${c.dim}to walk away${c.reset}`, rc));
   lines.push(bLine("", rc));
