@@ -17,7 +17,7 @@ function renderScreen(inputBuffer: string): string {
     "quit"
   );
 
-  const bar = `${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`;
+  const bar = `${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`;
 
   lines.push("\x1b[H");
   lines.push(bDiv("═", "╔", "╗"));

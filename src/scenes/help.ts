@@ -4,7 +4,7 @@ import type { SceneContext } from "./types.js";
 let handler: ((key: string) => void) | null = null;
 
 function renderScreen(): string {
-  const bar = `${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`;
+  const bar = `${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`;
 
   const lines: string[] = [];
   lines.push("\x1b[H");

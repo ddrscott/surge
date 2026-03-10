@@ -1,6 +1,6 @@
 import type { Zone } from "./types.js";
 
-export const WIDTH = 80;
+export const WIDTH = 78;
 export const WALL_MAX = 4;
 export const FIELD_WIDTH = WIDTH - WALL_MAX - 6; // leave room for padding + wall
 export const RIGHT_COL = WIDTH + 2; // column for right border (1 left + WIDTH content + 1 right)

@@ -1,6 +1,5 @@
 import type { Enemy, GameState, HitResult, PowerUpEffect, WaveConfig, Zone } from "../types.js";
 import { NUM_LANES } from "../types.js";
-import { FIELD_WIDTH } from "../render.js";
 import { getWord, getPowerUp } from "./words.js";
 
 const ZONE_THRESHOLDS = {
@@ -69,14 +68,14 @@ export function getZone(position: number): Zone {
   return "SAFE";
 }
 
-/** How many letters of an enemy's word have scrolled into view */
+const SCROLL_IN = 0.15; // must match game.ts
+
+/** How many letters of an enemy's word have scrolled into view (tail-first) */
 export function revealedCount(enemy: Enemy): number {
-  // Must match wordLayout() in game.ts — word slides from off-screen left
-  const maxCol = FIELD_WIDTH - enemy.word.length - 2;
-  const totalTravel = maxCol + enemy.word.length;
-  const leftEdge = -enemy.word.length + enemy.position * totalTravel;
-  if (leftEdge >= 0) return enemy.word.length;
-  return Math.max(0, Math.floor(enemy.word.length + leftEdge));
+  if (enemy.position <= 0) return 0;
+  if (enemy.position >= SCROLL_IN) return enemy.word.length;
+  const progress = enemy.position / SCROLL_IN;
+  return Math.min(enemy.word.length, Math.max(1, Math.ceil(progress * enemy.word.length)));
 }
 
 function spawnEnemy(state: GameState, config: WaveConfig): Enemy {
@@ -126,8 +125,7 @@ export function findTarget(state: GameState): Enemy | null {
   const matches = state.enemies
     .filter((e) => {
       if (e.dead) return false;
-      const revealed = revealedCount(e);
-      if (revealed < input.length) return false; // can't match more than revealed
+      if (revealedCount(e) === 0) return false; // word not on screen yet
       return e.word.toLowerCase().startsWith(input);
     })
     .sort((a, b) => b.position - a.position);
