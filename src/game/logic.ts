@@ -1,6 +1,6 @@
-import type { Enemy, GameState, HitResult, WaveConfig, Zone } from "../types.js";
+import type { Enemy, GameState, HitResult, PowerUpEffect, WaveConfig, Zone } from "../types.js";
 import { NUM_LANES } from "../types.js";
-import { getWord } from "./words.js";
+import { getWord, getPowerUp } from "./words.js";
 
 const ZONE_THRESHOLDS = {
   SAFE: 0.5,
@@ -80,6 +80,28 @@ function spawnEnemy(state: GameState, config: WaveConfig): Enemy {
     killedAt: -1,
     killedZone: null,
     killedPoints: 0,
+    powerUp: null,
+  };
+}
+
+function spawnPowerUp(state: GameState, config: WaveConfig): Enemy {
+  const pu = getPowerUp();
+  return {
+    id: nextEnemyId++,
+    word: pu.word,
+    position: 0,
+    speed: randBetween(config.maxSpeed * 1.5, config.maxSpeed * 2.5),
+    speedPhase: Math.random() * Math.PI * 2,
+    speedWobble: randBetween(0.05, 0.15),
+    damage: 0,
+    points: pu.word.length * 10,
+    dead: false,
+    spawnedAt: state.tick,
+    lane: pickLane(state),
+    killedAt: -1,
+    killedZone: null,
+    killedPoints: 0,
+    powerUp: pu.effect,
   };
 }
 
@@ -148,25 +170,36 @@ export function processInput(state: GameState): HitResult | null {
     if (input === target.word.toLowerCase()) {
       const zone = getZone(target.position);
       const multiplier = ZONE_MULTIPLIERS[zone];
-      const points = target.points * multiplier;
+      let points = target.points * multiplier;
       let damage = 0;
+
+      // Apply double score if active
+      if (state.doubleScoreUntil > state.tick) {
+        points *= 2;
+      }
 
       target.dead = true;
       target.killedAt = state.tick;
       target.killedZone = zone;
       target.killedPoints = points;
 
-      if (zone === "CRITICAL") {
-        state.surgeMeter += 3;
-      } else if (zone === "RISKY") {
-        state.surgeMeter += 2;
+      // Apply power-up effect
+      if (target.powerUp) {
+        applyPowerUp(state, target.powerUp);
       } else {
-        state.surgeMeter += 1;
-      }
+        // Normal bug kill — surge meter + damage logic
+        if (zone === "CRITICAL") {
+          state.surgeMeter += 3;
+        } else if (zone === "RISKY") {
+          state.surgeMeter += 2;
+        } else {
+          state.surgeMeter += 1;
+        }
 
-      if (target.position > 0.9) {
-        damage = Math.floor(target.damage * 0.3);
-        state.hp -= damage;
+        if (target.position > 0.9) {
+          damage = Math.floor(target.damage * 0.3);
+          state.hp -= damage;
+        }
       }
 
       state.score += points;
@@ -197,6 +230,26 @@ export function processInput(state: GameState): HitResult | null {
   return null;
 }
 
+const EFFECT_DURATION = 200; // ~10 seconds at 50ms/tick
+
+function applyPowerUp(state: GameState, effect: PowerUpEffect): void {
+  switch (effect) {
+    case "heal":
+      state.hp = Math.min(state.maxHp, state.hp + 25);
+      break;
+    case "surge_boost":
+      state.surgeMeter = Math.min(state.surgeThreshold, state.surgeMeter + 5);
+      if (state.surgeMeter >= state.surgeThreshold) state.surgeReady = true;
+      break;
+    case "double_score":
+      state.doubleScoreUntil = state.tick + EFFECT_DURATION;
+      break;
+    case "slow":
+      state.slowUntil = state.tick + EFFECT_DURATION;
+      break;
+  }
+}
+
 export function gameTick(state: GameState): void {
   if (state.gameOver) return;
 
@@ -204,11 +257,19 @@ export function gameTick(state: GameState): void {
 
   const config = getWaveConfig(state.wave);
 
-  // Spawn enemies
-  const totalSpawned = state.enemies.length;
-  if (totalSpawned < config.enemyCount && state.tick % config.spawnInterval === 0) {
+  // Spawn enemies (only count non-power-up enemies toward wave total)
+  const bugsSpawned = state.enemies.filter((e) => !e.powerUp).length;
+  if (bugsSpawned < config.enemyCount && state.tick % config.spawnInterval === 0) {
     state.enemies.push(spawnEnemy(state, config));
   }
+
+  // Spawn power-ups: ~15% chance each spawn interval, starting wave 1
+  if (state.wave >= 1 && state.tick % config.spawnInterval === 0 && Math.random() < 0.15) {
+    state.enemies.push(spawnPowerUp(state, config));
+  }
+
+  // Slow effect multiplier
+  const slowFactor = state.slowUntil > state.tick ? 0.4 : 1.0;
 
   // Move enemies with wobble for organic feel
   for (const enemy of state.enemies) {
@@ -216,15 +277,20 @@ export function gameTick(state: GameState): void {
 
     const wobble = 1 + Math.sin(state.tick * 0.08 + enemy.speedPhase) * enemy.speedWobble;
     const urgency = 1 + enemy.position * 0.3;
-    enemy.position += enemy.speed * wobble * urgency;
+    // Power-ups ignore slow (they're helpers, not enemies)
+    const slow = enemy.powerUp ? 1.0 : slowFactor;
+    enemy.position += enemy.speed * wobble * urgency * slow;
 
     if (enemy.position >= 1.0) {
       enemy.dead = true;
       enemy.killedAt = state.tick;
       enemy.killedZone = "MISSED";
       enemy.killedPoints = 0;
-      state.hp -= enemy.damage;
-      state.combo = 0;
+      // Power-ups just disappear — no damage, no combo break
+      if (!enemy.powerUp) {
+        state.hp -= enemy.damage;
+        state.combo = 0;
+      }
       if (state.targetId === enemy.id) {
         state.targetId = null;
         state.inputBuffer = "";
@@ -238,10 +304,10 @@ export function gameTick(state: GameState): void {
     (e) => !e.dead || (state.tick - e.killedAt) < DEATH_ANIM_TICKS
   );
 
-  // Check wave complete — all spawned AND all dead AND animations done
+  // Check wave complete — all bugs spawned AND all dead AND animations done
   const allDead = state.enemies.filter((e) => !e.dead).length === 0;
   const allAnimDone = state.enemies.every((e) => e.dead && (state.tick - e.killedAt) >= DEATH_ANIM_TICKS);
-  if (totalSpawned >= config.enemyCount && allDead && (state.enemies.length === 0 || allAnimDone)) {
+  if (bugsSpawned >= config.enemyCount && allDead && (state.enemies.length === 0 || allAnimDone)) {
     state.wave++;
     state.enemies = [];
     state.targetId = null;

@@ -27,6 +27,9 @@ function renderScreen(): string {
   lines.push(bLine(""));
   lines.push(bLine(`${c.dim}    Fill the ${c.magenta}surge${c.dim} meter. Fumigate everything.${c.reset}`));
   lines.push(bLine(""));
+  lines.push(bLine(`${c.dim}    Watch for ${c.magenta}${c.bold}power-ups${c.reset}${c.dim} — they move fast:${c.reset}`));
+  lines.push(bLine(`${c.dim}      ${c.magenta}${c.bold}patch${c.reset} ${c.dim}${c.magenta}fix${c.reset}${c.dim} = heal  ${c.magenta}${c.bold}freeze${c.reset}${c.dim} = slow bugs${c.reset}`));
+  lines.push(bLine(""));
   lines.push(bLine(`${c.dim}    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${c.reset}`));
   lines.push(bLine(""));
   lines.push(bLine(`    ${c.dim}any key to go back${c.reset}`));

@@ -38,8 +38,32 @@ const TIER_4 = [
   "ixodes scapularis", "pediculus humanus",
 ];
 
+import type { PowerUpEffect } from "../types.js";
+
+export interface PowerUpWord {
+  word: string;
+  effect: PowerUpEffect;
+}
+
+const POWER_UPS: PowerUpWord[] = [
+  { word: "patch", effect: "heal" },
+  { word: "fix", effect: "heal" },
+  { word: "malloc", effect: "heal" },
+  { word: "defrag", effect: "surge_boost" },
+  { word: "clean", effect: "surge_boost" },
+  { word: "optimize", effect: "double_score" },
+  { word: "overclock", effect: "double_score" },
+  { word: "freeze", effect: "slow" },
+  { word: "coolant", effect: "slow" },
+  { word: "suspend", effect: "slow" },
+];
+
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]!;
+}
+
+export function getPowerUp(): PowerUpWord {
+  return pickRandom(POWER_UPS);
 }
 
 export function getWord(minLen: number, maxLen: number): string {

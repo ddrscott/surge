@@ -1,3 +1,5 @@
+export type PowerUpEffect = "heal" | "surge_boost" | "double_score" | "slow";
+
 export interface Enemy {
   id: number;
   word: string;
@@ -24,6 +26,8 @@ export interface Enemy {
   killedZone: Zone | null;
   /** Points earned on kill */
   killedPoints: number;
+  /** If set, this is a power-up, not a bug */
+  powerUp: PowerUpEffect | null;
 }
 
 export const NUM_LANES = 8;
@@ -55,6 +59,10 @@ export interface GameState {
   inputBuffer: string;
   /** ID of the enemy currently being targeted by input, or null */
   targetId: number | null;
+  /** Tick when double score expires (0 = inactive) */
+  doubleScoreUntil: number;
+  /** Tick when slow effect expires (0 = inactive) */
+  slowUntil: number;
 }
 
 export interface WaveConfig {

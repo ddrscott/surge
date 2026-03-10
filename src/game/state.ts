@@ -17,5 +17,7 @@ export function createGame(): GameState {
     lastHit: null,
     inputBuffer: "",
     targetId: null,
+    doubleScoreUntil: 0,
+    slowUntil: 0,
   };
 }

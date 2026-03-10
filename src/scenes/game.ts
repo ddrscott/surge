@@ -12,6 +12,16 @@ let tickInterval: ReturnType<typeof setInterval> | null = null;
 
 /** Render a living enemy word with bg highlight on matched letters */
 function renderWord(enemy: Enemy, matched: number, zone: Zone): string {
+  // Power-ups always render in magenta
+  if (enemy.powerUp) {
+    if (matched === 0) {
+      return `${c.magenta}${c.bold}${enemy.word}${c.reset}`;
+    }
+    const matchedPart = enemy.word.slice(0, matched);
+    const remaining = enemy.word.slice(matched);
+    return `${c.bgMagenta}${c.black}${c.bold}${matchedPart}${c.reset}${c.magenta}${c.bold}${remaining}${c.reset}`;
+  }
+
   const color = zoneColor(zone);
 
   if (matched === 0) {
@@ -29,6 +39,13 @@ function renderWord(enemy: Enemy, matched: number, zone: Zone): string {
   return `${bgColor}${c.bold}${matchedPart}${c.reset}${color}${c.bold}${remaining}${c.reset}`;
 }
 
+const POWER_UP_LABELS: Record<string, string> = {
+  heal: "+HP",
+  surge_boost: "+SURGE",
+  double_score: "2x SCORE",
+  slow: "FREEZE",
+};
+
 /** Render a dead enemy — fading ghost on its lane */
 function renderDeath(enemy: Enemy, tick: number): string {
   const age = tick - enemy.killedAt;
@@ -36,7 +53,20 @@ function renderDeath(enemy: Enemy, tick: number): string {
   const padding = " ".repeat(Math.max(0, col));
 
   if (enemy.killedZone === "MISSED") {
+    // Power-ups that were missed just fade quietly
+    if (enemy.powerUp) {
+      if (age < 3) return `  ${padding}${c.dim}${enemy.word}${c.reset}`;
+      return `  ${c.dim}·${c.reset}`;
+    }
     if (age < 4) return `  ${padding}${c.red}${c.dim}${c.strikethrough}${enemy.word}${c.reset}`;
+    return `  ${c.dim}·${c.reset}`;
+  }
+
+  // Power-up caught — show effect label
+  if (enemy.powerUp) {
+    const label = POWER_UP_LABELS[enemy.powerUp] || "+??";
+    if (age < 4) return `  ${padding}${c.magenta}${c.bold}${label}${c.reset}`;
+    if (age < 6) return `  ${padding}${c.dim}${label}${c.reset}`;
     return `  ${c.dim}·${c.reset}`;
   }
 
@@ -115,7 +145,9 @@ function render(state: GameState): string {
       const wordStr = renderWord(alive, matched, zone);
 
       let marker: string;
-      if (alive.position > 0.9) marker = `${c.red}${c.bold}>>>>${c.reset}`;
+      if (alive.powerUp) {
+        marker = `${c.magenta}${c.bold}*${c.reset}`;
+      } else if (alive.position > 0.9) marker = `${c.red}${c.bold}>>>>${c.reset}`;
       else if (alive.position > 0.75) marker = `${c.red}>>${c.reset}`;
       else if (alive.position > 0.5) marker = `${c.yellow}>${c.reset}`;
       else marker = `${c.dim}·${c.reset}`;
@@ -148,7 +180,15 @@ function render(state: GameState): string {
   } else if (state.surgeReady) {
     lines.push(bLine(`  ${c.magenta}${c.bold}fumigate. type "surge".${c.reset}`));
   } else {
-    lines.push(bLine(""));
+    // Show active power-up effects
+    const effects: string[] = [];
+    if (state.doubleScoreUntil > state.tick) effects.push(`${c.magenta}${c.bold}2x SCORE${c.reset}`);
+    if (state.slowUntil > state.tick) effects.push(`${c.magenta}${c.bold}FREEZE${c.reset}`);
+    if (effects.length > 0) {
+      lines.push(bLine(`  ${effects.join("  ")}`));
+    } else {
+      lines.push(bLine(""));
+    }
   }
 
   // Input line
