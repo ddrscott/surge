@@ -1,11 +1,31 @@
 import type { GameState } from "../types.js";
-import { c, bLine, bDiv, padToRows, renderTitleWord } from "../render.js";
+import { layout, c, bLine, bDiv, padToRows, renderTitleWord } from "../render.js";
 import { getRandomFact } from "../game/facts.js";
 import type { SceneContext } from "./types.js";
 
 let handler: ((key: string) => void) | null = null;
 
+/** Word-wrap text to fit within maxWidth, returning up to maxLines lines */
+function wrapFact(text: string, maxWidth: number, maxLines: number): string[] {
+  const words = text.split(" ");
+  const result: string[] = [];
+  let line = "";
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (test.length > maxWidth && line) {
+      result.push(line);
+      if (result.length >= maxLines) return result;
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line && result.length < maxLines) result.push(line);
+  return result;
+}
+
 function renderScreen(state: GameState, inputBuffer: string, fact: string): string {
+  const { width } = layout();
   const lines: string[] = [];
   const rc = `${c.red}${c.bold}`; // red color for game over borders
 
@@ -19,17 +39,18 @@ function renderScreen(state: GameState, inputBuffer: string, fact: string): stri
     "quit"
   );
 
+  // Inner width minus border padding (║ + 2 spaces each side)
+  const factWidth = width - 4;
+  const factLines = wrapFact(fact, factWidth, 3);
+
   lines.push(bDiv("═", "╔", "╗", rc));
   lines.push(bLine("", rc));
-  lines.push(bLine("", rc));
   lines.push(bLine(`${c.dim}  stack overflow.${c.reset}`, rc));
+  lines.push(bLine(`${c.dim}  wave ${c.white}${state.wave + 1}${c.dim} · ${c.white}${c.bold}${state.score.toLocaleString()}${c.reset}${c.dim} pts · streak ${c.white}${c.bold}${state.maxCombo}${c.reset}`, rc));
   lines.push(bLine("", rc));
-  lines.push(bLine(`${c.dim}  the system crashed on wave ${c.white}${state.wave + 1}${c.dim}.${c.reset}`, rc));
-  lines.push(bLine("", rc));
-  lines.push(bLine(`${c.dim}  you squashed ${c.white}${c.bold}${state.score.toLocaleString()}${c.reset}${c.dim} points worth.${c.reset}`, rc));
-  lines.push(bLine(`${c.dim}  longest streak: ${c.white}${c.bold}${state.maxCombo}${c.reset}${c.dim} kills.${c.reset}`, rc));
-  lines.push(bLine("", rc));
-  lines.push(bLine(`  ${c.dim}${c.yellow}${fact}${c.reset}`, rc));
+  for (const fl of factLines) {
+    lines.push(bLine(`  ${c.dim}${c.yellow}${fl}${c.reset}`, rc));
+  }
   lines.push(bLine("", rc));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${jackWord} ${c.dim}to jack back in${c.reset}`, rc));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${quitWord} ${c.dim}to walk away${c.reset}`, rc));
