@@ -19,5 +19,7 @@ export function createGame(): GameState {
     targetId: null,
     doubleScoreUntil: 0,
     slowUntil: 0,
+    nextSpawnTick: 1,
+    waveSpawned: 0,
   };
 }

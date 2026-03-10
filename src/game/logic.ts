@@ -16,20 +16,22 @@ const ZONE_MULTIPLIERS: Record<Zone, number> = {
 };
 
 export function comboMultiplier(combo: number): number {
-  return 1 + Math.floor(combo / 5) * 0.5;
+  return 1 + Math.floor(combo / 3) * 0.5;
 }
 
 // Speeds are letters-per-tick for typewriter reveal (50ms tick = 20fps)
-// e.g. 0.05 lpt on a 4-letter word → 80 ticks (4s) to fully reveal
+// Phrase-based spawning: enemies arrive in bursts with rests between them.
+// phraseSize = enemies per burst, phrasePace = ticks within burst, phraseGap = rest between bursts.
 const WAVES: WaveConfig[] = [
-  { enemyCount: 5, minSpeed: 0.04, maxSpeed: 0.07, minWordLength: 3, maxWordLength: 4, spawnInterval: 60 },
-  { enemyCount: 7, minSpeed: 0.04, maxSpeed: 0.09, minWordLength: 3, maxWordLength: 5, spawnInterval: 48 },
-  { enemyCount: 9, minSpeed: 0.05, maxSpeed: 0.10, minWordLength: 3, maxWordLength: 6, spawnInterval: 40 },
-  { enemyCount: 11, minSpeed: 0.06, maxSpeed: 0.12, minWordLength: 4, maxWordLength: 7, spawnInterval: 36 },
-  { enemyCount: 13, minSpeed: 0.06, maxSpeed: 0.14, minWordLength: 4, maxWordLength: 8, spawnInterval: 32 },
-  { enemyCount: 15, minSpeed: 0.08, maxSpeed: 0.16, minWordLength: 4, maxWordLength: 9, spawnInterval: 28 },
-  { enemyCount: 18, minSpeed: 0.08, maxSpeed: 0.18, minWordLength: 5, maxWordLength: 10, spawnInterval: 24 },
-  { enemyCount: 20, minSpeed: 0.10, maxSpeed: 0.22, minWordLength: 5, maxWordLength: 11, spawnInterval: 20 },
+  //                                                                    phrase  pace  gap
+  { enemyCount: 6,  minSpeed: 0.06, maxSpeed: 0.10, minWordLength: 3, maxWordLength: 4,  phraseSize: 2, phrasePace: 12, phraseGap: 50 },
+  { enemyCount: 8,  minSpeed: 0.06, maxSpeed: 0.11, minWordLength: 3, maxWordLength: 5,  phraseSize: 2, phrasePace: 10, phraseGap: 44 },
+  { enemyCount: 10, minSpeed: 0.07, maxSpeed: 0.12, minWordLength: 3, maxWordLength: 6,  phraseSize: 3, phrasePace: 8,  phraseGap: 40 },
+  { enemyCount: 12, minSpeed: 0.08, maxSpeed: 0.13, minWordLength: 4, maxWordLength: 7,  phraseSize: 3, phrasePace: 8,  phraseGap: 36 },
+  { enemyCount: 14, minSpeed: 0.08, maxSpeed: 0.15, minWordLength: 4, maxWordLength: 8,  phraseSize: 3, phrasePace: 6,  phraseGap: 32 },
+  { enemyCount: 16, minSpeed: 0.09, maxSpeed: 0.17, minWordLength: 4, maxWordLength: 9,  phraseSize: 4, phrasePace: 6,  phraseGap: 28 },
+  { enemyCount: 19, minSpeed: 0.10, maxSpeed: 0.19, minWordLength: 5, maxWordLength: 10, phraseSize: 4, phrasePace: 5,  phraseGap: 24 },
+  { enemyCount: 22, minSpeed: 0.11, maxSpeed: 0.22, minWordLength: 5, maxWordLength: 11, phraseSize: 4, phrasePace: 4,  phraseGap: 20 },
 ];
 
 function getWaveConfig(wave: number): WaveConfig {
@@ -41,7 +43,8 @@ function getWaveConfig(wave: number): WaveConfig {
     enemyCount: Math.floor(last.enemyCount * scale),
     minSpeed: last.minSpeed * scale,
     maxSpeed: last.maxSpeed * scale,
-    spawnInterval: Math.max(10, last.spawnInterval - (wave - WAVES.length) * 2),
+    phrasePace: Math.max(2, last.phrasePace - Math.floor((wave - WAVES.length) * 0.5)),
+    phraseGap: Math.max(10, last.phraseGap - (wave - WAVES.length) * 2),
   };
 }
 
@@ -277,15 +280,25 @@ export function gameTick(state: GameState): void {
 
   const config = getWaveConfig(state.wave);
 
-  // Spawn enemies (only count non-power-up enemies toward wave total)
-  const bugsSpawned = state.enemies.filter((e) => !e.powerUp).length;
-  if (bugsSpawned < config.enemyCount && state.tick % config.spawnInterval === 0) {
+  // Phrase-based spawning: bursts of enemies with rests between
+  if (state.waveSpawned < config.enemyCount && state.tick >= state.nextSpawnTick) {
     state.enemies.push(spawnEnemy(state, config));
-  }
+    state.waveSpawned++;
 
-  // Spawn power-ups: ~15% chance each spawn interval, starting wave 1
-  if (state.wave >= 1 && state.tick % config.spawnInterval === 0 && Math.random() < 0.15) {
-    state.enemies.push(spawnPowerUp(state, config));
+    // Decide when to spawn next based on position within the phrase
+    const posInPhrase = (state.waveSpawned - 1) % config.phraseSize;
+    if (posInPhrase < config.phraseSize - 1) {
+      // Within a burst — spawn again quickly
+      state.nextSpawnTick = state.tick + config.phrasePace;
+    } else {
+      // End of burst — take a breath
+      state.nextSpawnTick = state.tick + config.phraseGap;
+    }
+
+    // Power-ups: ~15% chance per spawn, starting wave 1
+    if (state.wave >= 1 && Math.random() < 0.15) {
+      state.enemies.push(spawnPowerUp(state, config));
+    }
   }
 
   // Slow effect multiplier
@@ -309,10 +322,9 @@ export function gameTick(state: GameState): void {
       if (!enemy.powerUp) {
         state.hp -= enemy.damage;
         state.combo = 0;
-      }
-      if (state.targetId === enemy.id) {
-        state.targetId = null;
+        // Clear input when an enemy gets through — no manual backspacing
         state.inputBuffer = "";
+        state.targetId = null;
       }
     }
   }
@@ -326,10 +338,12 @@ export function gameTick(state: GameState): void {
   // Check wave complete — all bugs spawned AND all dead AND animations done
   const allDead = state.enemies.filter((e) => !e.dead).length === 0;
   const allAnimDone = state.enemies.every((e) => e.dead && (state.tick - e.killedAt) >= DEATH_ANIM_TICKS);
-  if (bugsSpawned >= config.enemyCount && allDead && (state.enemies.length === 0 || allAnimDone)) {
+  if (state.waveSpawned >= config.enemyCount && allDead && (state.enemies.length === 0 || allAnimDone)) {
     state.wave++;
     state.enemies = [];
     state.targetId = null;
+    state.nextSpawnTick = state.tick + 30; // brief calm before next wave
+    state.waveSpawned = 0;
     state.hp = Math.min(state.maxHp, state.hp + 15);
   }
 

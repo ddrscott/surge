@@ -60,6 +60,10 @@ export interface GameState {
   doubleScoreUntil: number;
   /** Tick when slow effect expires (0 = inactive) */
   slowUntil: number;
+  /** Tick when next enemy should spawn */
+  nextSpawnTick: number;
+  /** Enemies spawned this wave (for phrase rhythm tracking) */
+  waveSpawned: number;
 }
 
 export interface WaveConfig {
@@ -70,5 +74,10 @@ export interface WaveConfig {
   maxSpeed: number;
   minWordLength: number;
   maxWordLength: number;
-  spawnInterval: number;
+  /** Enemies per spawn burst */
+  phraseSize: number;
+  /** Ticks between spawns within a burst */
+  phrasePace: number;
+  /** Ticks of rest between bursts */
+  phraseGap: number;
 }
