@@ -9,7 +9,7 @@ custom_domain = true
 [assets]
 directory = "./web/dist"
 binding = "ASSETS"
-not_found_handling = "single-page-application"
+not_found_handling = "404-page"
 
 # Auth: shared JWT_SECRET with auth.ljs.app (set via `wrangler secret put JWT_SECRET`)
 # Local dev: add JWT_SECRET to .dev.vars
@@ -17,7 +17,5 @@ not_found_handling = "single-page-application"
 [[d1_databases]]
 binding = "DB"
 database_name = "surge-db"
-database_id = "placeholder-create-with-wrangler-d1-create"
-# Create the database: npx wrangler d1 create surge-db
-# Then replace database_id above with the real ID
+database_id = "f4fd1c96-9165-4a48-9a8c-867ee272d814"
 # Apply migrations: npx wrangler d1 migrations apply surge-db

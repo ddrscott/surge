@@ -1,3 +1,26 @@
 node_modules/
 dist/
 web/dist/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+.wrangler/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Build artifacts
+*.tsbuildinfo
+scripts/*.js
+scripts/*.js.map
+scripts/*.d.ts
+scripts/*.d.ts.map

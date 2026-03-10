@@ -10,7 +10,7 @@ function center(text: string, w: number): string {
 }
 
 function renderScreen(titleBuffer: string, authEmail: string | null = null, hasAuth = false): string {
-  const { compact, width } = layout();
+  const { compact, width, rows } = layout();
   const inner = width; // inner width between ║ borders
   const input = titleBuffer.toLowerCase();
   const surgeWord = renderTitleWord(
@@ -34,7 +34,7 @@ function renderScreen(titleBuffer: string, authEmail: string | null = null, hasA
   const lines: string[] = [];
   lines.push(bDiv("═", "╔", "╗"));
 
-  // ASCII art banner lines (59 chars wide)
+  // ASCII art banner lines (41 chars wide)
   const banner = [
     "███████ ██    ██ ██████   ██████  ███████",
     "██      ██    ██ ██   ██ ██       ██",
@@ -44,28 +44,35 @@ function renderScreen(titleBuffer: string, authEmail: string | null = null, hasA
   ];
   const bannerWidth = banner[0]!.length; // 41
 
+  // Fixed content: top border(1) + menu(4) + blank(1) + auth(0-1) + prompt(1) = 7-8
+  // Budget remaining rows for banner + taglines + spacers
+  const hasAuthLine = !!(authEmail || hasAuth);
+  const fixedLines = 1 + 4 + 1 + (hasAuthLine ? 1 : 0) + 1; // top + menu + blank + auth + prompt
+  const budgetForBanner = rows - fixedLines;
+
   if (compact) {
     const title = "S U R G E";
     lines.push(bLine(`${center(title, inner).replace(title, `${c.cyan}${c.bold}${title}${c.reset}`)}`));
     lines.push(bLine(`${c.dim}${center("Bugs in memory.", inner)}${c.reset}`));
     lines.push(bLine(`${c.dim}${center("Type to squash.", inner)}${c.reset}`));
-  } else if (inner >= bannerWidth + 2) {
-    // Full ASCII banner, centered
-    lines.push(bLine(""));
+  } else if (inner >= bannerWidth + 2 && budgetForBanner >= 12) {
+    // Full ASCII banner with breathing room: 5 banner + 3 taglines + 4 spacers/dbars = 12 min
+    const spacious = budgetForBanner >= 16;
+    if (spacious) lines.push(bLine(""));
     lines.push(bLine(dbar));
-    lines.push(bLine(""));
+    if (spacious) lines.push(bLine(""));
     for (const line of banner) {
       const padded = line + " ".repeat(bannerWidth - line.length);
       lines.push(bLine(`${c.cyan}${c.bold}${center(padded, inner)}${c.reset}`));
     }
-    lines.push(bLine(""));
+    if (spacious) lines.push(bLine(""));
     lines.push(bLine(dbar));
     lines.push(bLine(""));
     lines.push(bLine(`${c.dim}${center("The system is infested.", inner)}${c.reset}`));
     lines.push(bLine(`${c.dim}${center("Bugs are crawling through memory.", inner)}${c.reset}`));
     lines.push(bLine(`${c.dim}${center("Name them to squash them.", inner)}${c.reset}`));
-  } else {
-    // Medium: too narrow for ASCII art, too wide for compact
+  } else if (!compact) {
+    // Medium: text title instead of ASCII art
     lines.push(bLine(dbar));
     lines.push(bLine(""));
     const title = "S U R G E";
@@ -78,8 +85,8 @@ function renderScreen(titleBuffer: string, authEmail: string | null = null, hasA
   }
 
   lines.push(bLine(""));
-  if (!compact) lines.push(bLine(dbar));
-  if (!compact) lines.push(bLine(""));
+  if (!compact && budgetForBanner >= 14) lines.push(bLine(dbar));
+  if (!compact && budgetForBanner >= 14) lines.push(bLine(""));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${surgeWord} ${c.dim}to jack in${c.reset}`));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${helpWord}  ${c.dim}for briefing${c.reset}`));
   lines.push(bLine(`  ${c.dim}type${c.reset} ${boardWord} ${c.dim}for leaderboard${c.reset}`));

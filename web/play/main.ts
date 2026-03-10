@@ -2,22 +2,22 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
-import { setTermSize } from "../src/render.js";
-import { initWords } from "../src/game/words.js";
-import { initFacts } from "../src/game/facts.js";
-import type { SceneContext, InputEmitter, AuthUser } from "../src/scenes/types.js";
+import { setTermSize } from "../../src/render.js";
+import { initWords } from "../../src/game/words.js";
+import { initFacts } from "../../src/game/facts.js";
+import type { SceneContext, InputEmitter, AuthUser } from "../../src/scenes/types.js";
 
-import * as titleScene from "../src/scenes/title.js";
-import * as helpScene from "../src/scenes/help.js";
-import * as gameScene from "../src/scenes/game.js";
-import * as gameoverScene from "../src/scenes/gameover.js";
-import * as pauseScene from "../src/scenes/pause.js";
-import * as leaderboardScene from "../src/scenes/leaderboard.js";
+import * as titleScene from "../../src/scenes/title.js";
+import * as helpScene from "../../src/scenes/help.js";
+import * as gameScene from "../../src/scenes/game.js";
+import * as gameoverScene from "../../src/scenes/gameover.js";
+import * as pauseScene from "../../src/scenes/pause.js";
+import * as leaderboardScene from "../../src/scenes/leaderboard.js";
 
 // @ts-ignore - Vite raw import
-import bugsRaw from "../bugs.txt?raw";
+import bugsRaw from "../../bugs.txt?raw";
 // @ts-ignore - Vite raw import
-import factsRaw from "../facts.txt?raw";
+import factsRaw from "../../facts.txt?raw";
 
 // --- Initialize data ---
 initWords(bugsRaw);

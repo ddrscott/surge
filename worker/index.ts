@@ -97,7 +97,7 @@ async function handleApi(request: Request, url: URL, env: Env): Promise<Response
   // --- Auth callback: receives token from auth.ljs.app, sets session cookie ---
   if (url.pathname === "/api/auth/callback" && request.method === "GET") {
     const token = url.searchParams.get("token");
-    const returnTo = url.searchParams.get("returnTo") || "/";
+    const returnTo = url.searchParams.get("returnTo") || "/play";
 
     if (!token) {
       return Response.json({ error: "missing_token" }, { status: 400 });
@@ -151,7 +151,7 @@ async function handleApi(request: Request, url: URL, env: Env): Promise<Response
 
   // --- Auth login: redirect to auth.ljs.app ---
   if (url.pathname === "/api/auth/login" && request.method === "GET") {
-    const returnTo = url.searchParams.get("returnTo") || "/";
+    const returnTo = url.searchParams.get("returnTo") || "/play";
     const origin = getOrigin(request, env);
 
     const callbackUrl = new URL("/api/auth/callback", origin);

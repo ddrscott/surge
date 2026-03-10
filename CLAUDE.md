@@ -25,7 +25,12 @@ npm start            # run compiled Node.js version
 - `src/scenes/help.ts` - Briefing/how-to-play screen
 - `src/scenes/pause.ts` - Pause menu (resume/quit)
 - `src/scenes/gameover.ts` - Game over stats + fun fact
+- `src/scenes/leaderboard.ts` - Leaderboard display scene
 - `src/scenes/types.ts` - SceneContext, InputEmitter, AuthUser interfaces
+- `web/index.html` - Landing page (game description, auth flow, play link)
+- `web/play/index.html` - Game page with xterm.js terminal
+- `web/play/main.ts` - Browser entry: bridges xterm.js to scene system
+- `web/vite.config.ts` - Vite multi-page build config
 - `bugs.txt` - Word dictionary (340 words, validated at build time)
 - `facts.txt` - Fun facts (85 entries, validated at build time)
 
@@ -142,15 +147,21 @@ Edit `facts.txt` (one fact per line). Validated at build time for duplicates and
 - `worker/index.ts` - Worker entry point (serves assets + auth + API routes)
 - `worker/tsconfig.json` - Worker-specific TS config (uses `@cloudflare/workers-types`)
 - Static assets served from `web/dist/` via `ASSETS` binding
-- D1 database binding commented out, ready to uncomment when needed
+- D1 database `surge-db` for leaderboard scores
 - API routes under `/api/*` go to Worker, everything else serves static assets
+- Landing page at `/`, game at `/play` (multi-page Vite build)
+- `not_found_handling = "404-page"` (not SPA — distinct pages for landing vs game)
 
-## Future: Multiplayer & Leaderboards
+## Web Pages
 
-The architecture is designed to support multiplayer and global leaderboards:
+- `/` — Landing page: explains the game, auth flow, links to `/play` and sign-in
+- `/play` — Game page: fullscreen xterm.js terminal running the game
+- Auth callback defaults to `/play` after successful sign-in
+
+## Future: Multiplayer
+
+The architecture is designed to support multiplayer:
 - Game state is a pure data structure (GameState), no global mutation
 - Rendering is a pure function of state (render returns a string)
 - Input processing returns results without side effects on rendering
 - Scene system can be instantiated per-connection
-- Worker is D1-ready for leaderboards (`wrangler.toml` has commented binding)
-- API route skeleton in `worker/index.ts` for scores, matchmaking

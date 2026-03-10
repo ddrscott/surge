@@ -6,6 +6,12 @@ export default defineConfig({
   build: {
     outDir: resolve(__dirname, "dist"),
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, "index.html"),
+        play: resolve(__dirname, "play/index.html"),
+      },
+    },
   },
   assetsInclude: ["**/*.txt"],
 });

@@ -28,7 +28,7 @@ npm run deploy      # build + deploy to Cloudflare Workers
 ```
 
 **Terminal version** requires Node.js 18+ and an interactive terminal (min 30x10).
-**Browser version** runs at [surge.ljs.app](https://surge.ljs.app) or locally on `localhost:5173`.
+**Browser version** runs at [surge.ljs.app/play](https://surge.ljs.app/play) or locally on `localhost:5173/play`.
 
 ## How to Play
 
@@ -103,9 +103,11 @@ src/                    Platform-agnostic game code (no Node.js deps except main
     pause.ts            Pause menu
     gameover.ts         Final stats and fun fact display
 web/                    Browser build
-  index.html            Minimal dark page with xterm.js terminal
-  main.ts               Browser entry: bridges xterm.js to scene system
-  vite.config.ts        Vite build config
+  index.html            Landing page (game description, sign-in, play link)
+  vite.config.ts        Vite multi-page build config
+  play/
+    index.html          Game page with xterm.js terminal
+    main.ts             Browser entry: bridges xterm.js to scene system
 worker/                 Cloudflare Worker
   index.ts              Worker entry: serves static assets + API routes
   tsconfig.json         Worker-specific TypeScript config
@@ -194,9 +196,10 @@ Surge integrates with [auth.ljs.app](https://auth.ljs.app) for email-based authe
 
 ### How It Works
 
-1. Player visits `surge.ljs.app` - game loads, web client checks `/api/auth/me`
-2. If logged in, title screen shows email; game over screen shows leaderboard status
-3. If not logged in, screens show a hint to sign in at `auth.ljs.app`
+1. Player visits `surge.ljs.app` - landing page explains game and auth flow
+2. Player clicks "Jack In" to go to `/play` — game loads, web client checks `/api/auth/me`
+3. If logged in, title screen shows email; game over screen shows leaderboard status
+4. If not logged in, screens show a hint to sign in at `auth.ljs.app`
 4. Login redirects through `auth.ljs.app/login` → magic link email → callback with signed token
 5. Worker validates HMAC-SHA256 token using shared `JWT_SECRET`, sets httpOnly session cookie
 
