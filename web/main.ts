@@ -39,19 +39,37 @@ interface TermSize {
   fontSize: number;
 }
 
+/** Read a CSS env() value in pixels (for safe-area-inset-*) */
+function getSafeAreaInset(side: string): number {
+  const el = document.documentElement;
+  const val = getComputedStyle(el).getPropertyValue(`env(safe-area-inset-${side})`);
+  return parseFloat(val) || 0;
+}
+
 function pickTier(): TermSize {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  // Use visualViewport for accurate size (excludes virtual keyboard, browser chrome)
+  const vv = window.visualViewport;
+  const vw = vv ? vv.width : window.innerWidth;
+  const vh = vv ? vv.height : window.innerHeight;
+
+  // Account for safe area insets (notch, status bar)
+  const insetTop = getSafeAreaInset("top");
+  const insetBottom = getSafeAreaInset("bottom");
+  const insetLeft = getSafeAreaInset("left");
+  const insetRight = getSafeAreaInset("right");
+
+  const availW = vw - insetLeft - insetRight;
+  const availH = vh - insetTop - insetBottom;
 
   // Character aspect ratio: width ≈ 0.6 × fontSize, height ≈ 1.2 × fontSize
   const charWidthRatio = 0.6;
   const charHeightRatio = 1.2;
+  const isPortrait = availH > availW;
 
   for (const tier of TIERS) {
-    const fontByWidth = vw / (tier.cols * charWidthRatio);
-    const fontByHeight = vh / (tier.rows * charHeightRatio);
-    // On portrait mobile, size to width so virtual keyboard has room
-    const isPortrait = vh > vw;
+    const fontByWidth = availW / (tier.cols * charWidthRatio);
+    const fontByHeight = availH / (tier.rows * charHeightRatio);
+    // Portrait: size to width so virtual keyboard has room below
     const fontSize = Math.floor(isPortrait ? fontByWidth : Math.min(fontByWidth, fontByHeight));
 
     if (fontSize >= 10) {
@@ -61,7 +79,7 @@ function pickTier(): TermSize {
 
   // Fallback: smallest tier, fit to width
   const smallest = TIERS[TIERS.length - 1]!;
-  const fontSize = Math.max(10, Math.floor(vw / (smallest.cols * charWidthRatio)));
+  const fontSize = Math.max(10, Math.floor(availW / (smallest.cols * charWidthRatio)));
   return { cols: smallest.cols, rows: smallest.rows, fontSize };
 }
 
@@ -128,6 +146,8 @@ function handleResize() {
 
 window.addEventListener("resize", handleResize);
 window.addEventListener("orientationchange", handleResize);
+// visualViewport fires on virtual keyboard show/hide
+window.visualViewport?.addEventListener("resize", handleResize);
 
 // --- Input emitter (bridges xterm.js onData to scene system) ---
 type DataListener = (key: string) => void;
