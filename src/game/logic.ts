@@ -75,7 +75,7 @@ export function getZone(position: number): Zone {
   return "SAFE";
 }
 
-const SCROLL_IN = 0.15; // must match game.ts
+const SCROLL_IN = 0.05; // must match game.ts
 
 /** How many letters of an enemy's word have scrolled into view (tail-first) */
 export function revealedCount(enemy: Enemy): number {

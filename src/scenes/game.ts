@@ -10,7 +10,7 @@ let handler: ((key: string) => void) | null = null;
 let tickInterval: ReturnType<typeof setInterval> | null = null;
 
 // --- Phase thresholds (must match logic.ts SCROLL_IN) ---
-const SCROLL_IN = 0.15;
+const SCROLL_IN = 0.05; // brief dim fade-in
 const INJECTION_START = 0.85;
 
 // --- Matrix wire ---
@@ -88,23 +88,23 @@ function renderLaneContent(
     return " ".repeat(fieldWidth);
   }
 
-  // --- Phase 1: Scroll-in from right ---
+  // --- Phase 1: Fade-in (whole word appears at once, dim → bright) ---
   if (enemy.position < SCROLL_IN) {
-    const progress = enemy.position / SCROLL_IN;
-    const visibleCount = Math.min(len, Math.max(1, Math.ceil(progress * len)));
-    const startIdx = len - visibleCount;
-    const col = anchorCol + startIdx;
-    const padding = " ".repeat(col);
-    const wordStr = renderWordStr(enemy, matched, zone, startIdx, len);
+    const padding = " ".repeat(anchorCol);
+    // Show full word immediately, but dim during fade
+    const wordStr = `${c.dim}${renderWordStr(enemy, matched, zone, 0, len)}`;
     return padding + wordStr;
   }
 
-  // --- Phase 2: Static word + matrix wire ---
+  // --- Phase 2: Static word + matrix wire (grows LEFT→RIGHT toward word) ---
   if (enemy.position < INJECTION_START) {
     const wireProgress = (enemy.position - SCROLL_IN) / (INJECTION_START - SCROLL_IN);
     const maxWireLen = Math.max(0, anchorCol - WIRE_MARGIN);
     const wireLen = Math.max(0, Math.round(wireProgress * maxWireLen));
-    const wireStart = anchorCol - wireLen;
+    // Wire starts at left (near wall) and extends rightward toward the word
+    const wireStart = WIRE_MARGIN;
+    const wireEnd = wireStart + wireLen; // right edge of wire, closing gap with word
+    const gap = anchorCol - wireEnd; // space between wire end and word
 
     // Build wire string
     const wireColor = zoneColor(zone);
@@ -114,10 +114,11 @@ function renderLaneContent(
       wire += wireChar(tick, wireStart + i, reversed);
     }
 
-    const padding = " ".repeat(Math.max(0, wireStart));
+    const leftPad = " ".repeat(WIRE_MARGIN);
+    const gapPad = " ".repeat(Math.max(0, gap));
     const wordStr = renderWordStr(enemy, matched, zone, 0, len);
 
-    return padding + `${wireColor}${c.dim}${wire}${c.reset}` + wordStr;
+    return leftPad + `${wireColor}${c.dim}${wire}${c.reset}` + gapPad + wordStr;
   }
 
   // --- Phase 3: Elastic injection ---
