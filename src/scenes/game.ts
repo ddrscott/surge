@@ -74,6 +74,7 @@ function renderLaneContent(
   matched: number,
   zone: Zone,
   tick: number,
+  inHitStun: boolean,
 ): string {
   const { fieldWidth } = layout();
   const len = enemy.word.length;
@@ -90,26 +91,23 @@ function renderLaneContent(
     return padding + wordStr;
   }
 
+  // Wire area constants (shared by Phase 2 and 3)
+  const wireAreaStart = anchorCol + len;
+  const wireAreaEnd = fieldWidth - WIRE_MARGIN;
+  const maxWireLen = Math.max(0, wireAreaEnd - wireAreaStart);
+
   // --- Phase 2: Static word + matrix wire (grows RIGHT→LEFT toward word) ---
   if (enemy.position < INJECTION_START) {
     const wireProgress = (enemy.position - SCROLL_IN) / (INJECTION_START - SCROLL_IN);
-    // Wire lives between the word's right edge and the right wall margin
-    const wireAreaStart = anchorCol + len; // just after word
-    const wireAreaEnd = fieldWidth - WIRE_MARGIN; // stop before wall
-    const maxWireLen = Math.max(0, wireAreaEnd - wireAreaStart);
     const wireLen = Math.max(0, Math.round(wireProgress * maxWireLen));
-    // Wire grows from right toward the word: right-aligned in wire area
     const wireStart = wireAreaEnd - wireLen;
-    const gap = wireStart - wireAreaStart; // shrinking gap between word and wire
+    const gap = wireStart - wireAreaStart;
 
-    // Build wire string — brighter near the word (left edge), dimmer near the wall
     const wireColor = zoneColor(zone);
     const reversed = matched > 0;
     let wire = "";
     for (let i = 0; i < wireLen; i++) {
-      // i=0 is closest to word (left edge), i=wireLen-1 is near wall (right edge)
-      const proximity = 1 - i / Math.max(1, wireLen - 1); // 1 at word, 0 at wall
-      // Blend: bright when close + overall progress makes everything brighter
+      const proximity = 1 - i / Math.max(1, wireLen - 1);
       const brightness = proximity * 0.5 + wireProgress * 0.5;
       const bright = brightness > 0.6 ? c.bold : brightness > 0.3 ? "" : c.dim;
       wire += `${wireColor}${bright}${wireChar(tick, wireStart + i, reversed)}${c.reset}`;
@@ -122,62 +120,85 @@ function renderLaneContent(
     return leftPad + wordStr + gapPad + wire;
   }
 
+  // --- Hitstun flash: wire at full length + word, both red ---
+  if (inHitStun && enemy.hitStunTriggered) {
+    const wireStart = wireAreaStart; // full wire, gap = 0
+    let wire = "";
+    for (let i = 0; i < maxWireLen; i++) {
+      wire += `${c.red}${c.bold}${wireChar(tick, wireStart + i, false)}${c.reset}`;
+    }
+    const leftPad = " ".repeat(anchorCol);
+    const wordStr = `${c.red}${c.bold}${enemy.word}${c.reset}`;
+    return leftPad + wordStr + wire;
+  }
+
   // --- Phase 3: Elastic injection (word stretches toward RIGHT wall) ---
+  // Wire stays visible as background; stretching letters overwrite it
   const injProgress = Math.min(1, (enemy.position - INJECTION_START) / (1.0 - INJECTION_START));
 
-  // Each letter gets its own position; rightmost letters lead (closest to wall)
-  const endAnchor = fieldWidth - WIRE_MARGIN - len; // compressed at right wall
+  // Build wire background into buffer first
+  const buf: (string | null)[] = new Array(fieldWidth).fill(null);
+  for (let i = 0; i < maxWireLen; i++) {
+    const col = wireAreaStart + i;
+    if (col < fieldWidth) {
+      buf[col] = wireChar(tick, col, false);
+    }
+  }
+
+  // Compute per-letter positions with staggered elastic easing
+  const endAnchor = fieldWidth - WIRE_MARGIN - len;
   const letterCols: number[] = [];
   for (let i = 0; i < len; i++) {
-    // Rightmost letters (high i) start moving first
     const delay = len > 1 ? ((len - 1 - i) * 0.3) / (len - 1) : 0;
     const lp = Math.max(0, Math.min(1, (injProgress - delay) / (1 - delay)));
-    const eased = lp * lp * lp; // cubic ease-in
+    const eased = lp * lp * lp;
     const startCol = anchorCol + i;
     const endCol = endAnchor + i;
     const col = Math.round(startCol + (endCol - startCol) * eased);
     letterCols.push(col);
   }
 
-  // Build character buffer
-  const buf: (number | null)[] = new Array(fieldWidth).fill(null);
+  // Track which positions are word letters (overwriting wire)
+  const letterBuf: (number | null)[] = new Array(fieldWidth).fill(null);
   for (let i = 0; i < len; i++) {
     const col = letterCols[i]!;
     if (col >= 0 && col < fieldWidth) {
-      buf[col] = i;
+      letterBuf[col] = i;
     }
   }
 
-  // Serialize with coloring
-  const color = enemy.powerUp ? c.magenta : zoneColor(zone);
-  let bgColor: string;
-  if (zone === "CRITICAL") bgColor = c.bgBrightRed;
-  else if (zone === "RISKY") bgColor = c.bgYellow + c.black;
-  else bgColor = c.bgGreen + c.black;
-
+  // Serialize: word letters override wire chars
+  const color = enemy.powerUp ? c.magenta : c.red;
   let result = "";
-  let lastMode: "space" | "matched" | "unmatched" | null = null;
+  let lastMode: "space" | "wire" | "letter" | null = null;
 
   for (let i = 0; i < fieldWidth; i++) {
-    const idx = buf[i] ?? null;
-    let mode: "space" | "matched" | "unmatched";
+    const letterIdx = letterBuf[i] ?? null;
+    const wireVal = buf[i];
+    let mode: "space" | "wire" | "letter";
 
-    if (idx === null) {
-      mode = "space";
-    } else if (idx < matched) {
-      mode = "matched";
+    if (letterIdx !== null) {
+      mode = "letter";
+    } else if (wireVal !== null) {
+      mode = "wire";
     } else {
-      mode = "unmatched";
+      mode = "space";
     }
 
     if (mode !== lastMode) {
       if (lastMode && lastMode !== "space") result += c.reset;
-      if (mode === "matched") result += `${bgColor}${c.bold}`;
-      else if (mode === "unmatched") result += `${color}${c.bold}`;
+      if (mode === "letter") result += `${color}${c.bold}`;
+      else if (mode === "wire") result += `${c.red}${c.dim}`;
       lastMode = mode;
     }
 
-    result += idx !== null ? enemy.word[idx]! : " ";
+    if (letterIdx !== null) {
+      result += enemy.word[letterIdx]!;
+    } else if (wireVal !== null) {
+      result += wireVal;
+    } else {
+      result += " ";
+    }
   }
   if (lastMode && lastMode !== "space") result += c.reset;
 
@@ -362,7 +383,8 @@ function render(state: GameState): string {
       const zone = getZone(alive.position);
       const isTarget = target !== null && alive.id === target.id;
       const matched = isTarget ? inputLen : 0;
-      lines.push(renderLaneContent(alive, matched, zone, state.tick));
+      const hitStun = state.hitStunUntil > state.tick;
+      lines.push(renderLaneContent(alive, matched, zone, state.tick, hitStun));
       continue;
     }
 
